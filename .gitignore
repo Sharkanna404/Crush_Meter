@@ -1,0 +1,37 @@
+# 敏感文件
+.api_key
+*.db
+*.sqlite
+*.sqlite3
+
+# 上传的图片
+uploads/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+server.log
+uvicorn.log

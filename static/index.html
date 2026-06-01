@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心动解码器 | Crush Meter</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --pink: #F38BB6;
+            --pink-light: #FDC5DA;
+            --pink-pale: #FFF0F5;
+            --green-dark: #5A8221;
+            --green: #7DAE3E;
+            --green-light: #B8D982;
+            --cream: #F7F5F0;
+            --cream-dark: #EDE9E0;
+            --text: #3D3D3D;
+            --text-light: #777;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+            background: var(--cream);
+            min-height: 100vh;
+            color: var(--text);
+        }
+
+        /* 顶部粉色装饰条 */
+        .top-bar {
+            height: 8px;
+            background: linear-gradient(90deg, var(--pink), var(--green));
+        }
+
+        /* 波浪分隔线 */
+        .wave-divider {
+            width: 100%;
+            height: 40px;
+            background: var(--pink);
+            mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 120'%3E%3Cpath fill='%23fff' d='M0,64 C480,150 960,-20 1440,64 L1440,120 L0,120 Z'/%3E%3C/svg%3E");
+            mask-size: cover;
+            mask-position: bottom;
+            -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 120'%3E%3Cpath fill='%23fff' d='M0,64 C480,150 960,-20 1440,64 L1440,120 L0,120 Z'/%3E%3C/svg%3E");
+            -webkit-mask-size: cover;
+            -webkit-mask-position: bottom;
+        }
+        .wave-divider.reverse {
+            transform: rotate(180deg);
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 0 20px 40px;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 48px 20px 32px;
+            position: relative;
+        }
+        header::before {
+            content: '🌿';
+            position: absolute;
+            left: 10%;
+            top: 30px;
+            font-size: 2rem;
+            opacity: 0.4;
+            animation: float 3s ease-in-out infinite;
+        }
+        header::after {
+            content: '🌸';
+            position: absolute;
+            right: 10%;
+            top: 40px;
+            font-size: 2rem;
+            opacity: 0.4;
+            animation: float 3s ease-in-out infinite 1s;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        header h1 {
+            font-size: 2.8rem;
+            color: var(--green-dark);
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+        }
+        header h1 span {
+            color: var(--pink);
+        }
+        header p {
+            color: var(--text-light);
+            font-size: 1rem;
+        }
+
+        /* 便签纸风格的卡片 */
+        .card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(243, 139, 182, 0.12),
+                        0 1px 3px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 18px;
+            background: linear-gradient(135deg, var(--pink-light), var(--pink));
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            opacity: 0.7;
+        }
+        .card.pink-card {
+            background: linear-gradient(135deg, var(--pink-pale), #fff);
+            border: 2px dashed var(--pink-light);
+        }
+        .card.pink-card::before {
+            background: var(--green);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--green-dark);
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        .input-group label::before {
+            content: '🍃 ';
+        }
+        .input-group input,
+        .input-group textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid var(--cream-dark);
+            border-radius: 16px;
+            background: var(--cream);
+            color: var(--text);
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+        .input-group input:focus,
+        .input-group textarea:focus {
+            border-color: var(--pink);
+            box-shadow: 0 0 0 3px rgba(243, 139, 182, 0.15);
+        }
+        .input-group textarea {
+            min-height: 200px;
+            resize: vertical;
+            line-height: 1.7;
+        }
+
+        /* 椭圆形按钮 */
+        .btn {
+            width: 100%;
+            padding: 16px 32px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, var(--green), var(--green-light));
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(125, 174, 62, 0.3);
+            letter-spacing: 1px;
+        }
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(125, 174, 62, 0.4);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* 粉色区块 */
+        .pink-section {
+            background: linear-gradient(135deg, var(--pink), var(--pink-light));
+            margin: 0 -20px;
+            padding: 32px 20px;
+            position: relative;
+        }
+
+        /* 结果展示 */
+        .result { display: none; }
+        .result.show { display: block; animation: fadeIn 0.6s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .heart-score {
+            text-align: center;
+            margin-bottom: 32px;
+            padding: 24px;
+            background: linear-gradient(135deg, var(--pink-pale), #fff);
+            border-radius: 24px;
+            border: 3px solid var(--pink-light);
+        }
+        .heart-score .number {
+            font-size: 5rem;
+            font-weight: 800;
+            color: var(--pink);
+            line-height: 1;
+            text-shadow: 2px 2px 0 var(--pink-light);
+        }
+        .heart-score .level {
+            display: inline-block;
+            padding: 8px 24px;
+            border-radius: 50px;
+            background: var(--green);
+            color: #fff;
+            font-weight: 700;
+            margin-top: 12px;
+            font-size: 1.1rem;
+            box-shadow: 0 3px 10px rgba(90, 130, 33, 0.2);
+        }
+
+        .dimensions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .dim-item {
+            background: linear-gradient(135deg, #fff, var(--cream));
+            border-radius: 20px;
+            padding: 18px 14px;
+            text-align: center;
+            border: 2px solid var(--cream-dark);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .dim-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(243, 139, 182, 0.15);
+            border-color: var(--pink-light);
+        }
+        .dim-item .dim-name {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .dim-item .dim-score {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--green-dark);
+        }
+        .dim-item .dim-bar {
+            height: 8px;
+            background: var(--cream-dark);
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .dim-item .dim-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--pink), var(--green));
+            transition: width 1s ease-out;
+        }
+
+        .section-title {
+            font-size: 1.15rem;
+            color: var(--green-dark);
+            margin-bottom: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .signals {
+            margin-bottom: 24px;
+        }
+        .signal-item {
+            background: linear-gradient(135deg, #fff, var(--pink-pale));
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            border-left: 4px solid var(--pink);
+            line-height: 1.7;
+            box-shadow: 0 2px 8px rgba(243, 139, 182, 0.08);
+        }
+        .advice-box {
+            background: linear-gradient(135deg, var(--green-light), var(--green));
+            border-radius: 20px;
+            padding: 24px;
+            line-height: 1.8;
+            color: #fff;
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
+        }
+        .advice-box::before {
+            content: '💡';
+            position: absolute;
+            right: 16px;
+            top: 16px;
+            font-size: 2rem;
+            opacity: 0.3;
+        }
+        .risk-box {
+            background: linear-gradient(135deg, #FFF8E1, #FFECB3);
+            border-radius: 16px;
+            padding: 18px 22px;
+            margin-top: 16px;
+            border: 2px dashed #FFB300;
+            color: #E65100;
+            font-weight: 500;
+        }
+
+        /* 历史记录 */
+        .history-list {
+            display: grid;
+            gap: 12px;
+        }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #fff, var(--cream));
+            border-radius: 16px;
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .history-item:hover {
+            border-color: var(--pink-light);
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(243, 139, 182, 0.1);
+        }
+        .history-item .h-name {
+            font-weight: 700;
+            color: var(--green-dark);
+        }
+        .history-item .h-score {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--pink);
+        }
+        .history-item .h-date {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-light);
+            padding: 40px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--green);
+            font-weight: 600;
+        }
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--pink-light);
+            border-top-color: var(--pink);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .error-box {
+            background: linear-gradient(135deg, #FFEBEE, #FFCDD2);
+            border: 2px solid #EF5350;
+            border-radius: 16px;
+            padding: 16px 20px;
+            color: #C62828;
+            margin-top: 16px;
+            font-weight: 500;
+        }
+
+        /* 底部装饰 */
+        footer {
+            text-align: center;
+            padding: 32px 20px;
+            color: var(--text-light);
+            font-size: 0.85rem;
+        }
+        footer .leaf {
+            font-size: 1.5rem;
+            margin: 0 4px;
+        }
+
+        /* 趋势图 */
+        .trend-section {
+            margin-top: 28px;
+            padding-top: 24px;
+            border-top: 2px dashed var(--pink-light);
+        }
+        .trend-section .section-title {
+            margin-bottom: 16px;
+        }
+        .trend-chart-container {
+            position: relative;
+            height: 260px;
+            background: linear-gradient(135deg, #fff, var(--pink-pale));
+            border-radius: 20px;
+            padding: 12px;
+        }
+        .trend-empty {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+        .trend-empty .emoji {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        /* 用户状态栏 */
+        .user-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 12px 20px;
+            gap: 12px;
+            background: #fff;
+            border-bottom: 1px solid var(--cream-dark);
+        }
+        .user-bar .user-name {
+            font-weight: 600;
+            color: var(--green-dark);
+            font-size: 0.9rem;
+        }
+        .user-bar .user-btn {
+            padding: 6px 16px;
+            border-radius: 50px;
+            border: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .user-bar .btn-login {
+            background: linear-gradient(135deg, var(--green), var(--green-light));
+            color: #fff;
+        }
+        .user-bar .btn-logout {
+            background: var(--cream);
+            color: var(--text-light);
+            border: 1px solid var(--cream-dark);
+        }
+        .user-bar .btn-logout:hover {
+            background: var(--pink-pale);
+            color: var(--pink);
+        }
+
+        /* 弹窗 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .modal-overlay.show {
+            display: flex;
+            animation: fadeIn 0.3s;
+        }
+        .modal {
+            background: #fff;
+            border-radius: 24px;
+            padding: 32px;
+            width: 100%;
+            max-width: 400px;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+        .modal-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .modal-header h3 {
+            color: var(--green-dark);
+            font-size: 1.4rem;
+            margin-bottom: 4px;
+        }
+        .modal-header p {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+        .modal-close:hover {
+            color: var(--pink);
+        }
+        .modal-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid var(--cream-dark);
+            border-radius: 16px;
+            background: var(--cream);
+            color: var(--text);
+            font-size: 1rem;
+            margin-bottom: 12px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        .modal-input:focus {
+            border-color: var(--pink);
+            box-shadow: 0 0 0 3px rgba(243, 139, 182, 0.15);
+        }
+        .modal-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+        }
+        .modal-btn-primary {
+            background: linear-gradient(135deg, var(--green), var(--green-light));
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(125, 174, 62, 0.3);
+        }
+        .modal-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(125, 174, 62, 0.4);
+        }
+        .modal-btn-secondary {
+            background: linear-gradient(135deg, var(--pink), var(--pink-light));
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(243, 139, 182, 0.3);
+        }
+        .modal-btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(243, 139, 182, 0.4);
+        }
+        .modal-footer {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+        .modal-footer a {
+            color: var(--pink);
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .modal-footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* 注册提示条 */
+        .register-hint {
+            background: linear-gradient(135deg, var(--pink-pale), #fff);
+            border: 2px dashed var(--pink);
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .register-hint p {
+            color: var(--green-dark);
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .register-hint .hint-btn {
+            padding: 10px 28px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, var(--pink), var(--pink-light));
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 0.95rem;
+            box-shadow: 0 4px 12px rgba(243, 139, 182, 0.3);
+        }
+        .register-hint .hint-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* 响应式 */
+        /* 图片上传 */
+        .upload-area {
+            border: 2px dashed var(--pink-light);
+            border-radius: 20px;
+            padding: 32px;
+            text-align: center;
+            background: linear-gradient(135deg, var(--pink-pale), #fff);
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 16px;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--pink);
+            background: linear-gradient(135deg, #fff, var(--pink-pale));
+            box-shadow: 0 4px 20px rgba(243, 139, 182, 0.15);
+        }
+        .upload-area .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            display: block;
+        }
+        .upload-area .upload-text {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+        .upload-area .upload-hint {
+            color: var(--pink);
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
+        .upload-count {
+            text-align: center;
+            color: var(--text-light);
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+        }
+        .upload-count .count-num {
+            color: var(--pink);
+            font-weight: 700;
+        }
+
+        /* 图片列表 */
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .image-item {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #fff;
+            border: 2px solid var(--cream-dark);
+            transition: all 0.2s;
+        }
+        .image-item:hover {
+            border-color: var(--pink-light);
+            box-shadow: 0 4px 12px rgba(243, 139, 182, 0.12);
+        }
+        .image-item .img-thumb {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            display: block;
+        }
+        .image-item .img-status {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 2px 8px;
+            border-radius: 50px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .image-item .img-status.pending {
+            background: var(--cream-dark);
+            color: var(--text-light);
+        }
+        .image-item .img-status.processing {
+            background: #FFF3E0;
+            color: #E65100;
+        }
+        .image-item .img-status.done {
+            background: #E8F5E9;
+            color: var(--green-dark);
+        }
+        .image-item .img-status.error {
+            background: #FFEBEE;
+            color: #C62828;
+        }
+        .image-item .img-name {
+            padding: 8px 10px;
+            font-size: 0.75rem;
+            color: var(--text-light);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .image-item .img-actions {
+            display: flex;
+            gap: 4px;
+            padding: 0 10px 10px;
+        }
+        .image-item .img-btn {
+            flex: 1;
+            padding: 4px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .image-item .img-btn.delete {
+            background: #FFEBEE;
+            color: #C62828;
+        }
+        .image-item .img-btn.delete:hover {
+            background: #EF5350;
+            color: #fff;
+        }
+        .image-item .img-btn.ocr {
+            background: var(--pink-pale);
+            color: var(--pink);
+        }
+        .image-item .img-btn.ocr:hover {
+            background: var(--pink);
+            color: #fff;
+        }
+
+        /* OCR 编辑区 */
+        .ocr-edit-section {
+            margin-top: 16px;
+            padding: 16px;
+            background: linear-gradient(135deg, #fff, var(--cream));
+            border-radius: 16px;
+            border: 2px dashed var(--cream-dark);
+        }
+        .ocr-edit-section .section-title {
+            font-size: 1rem;
+            margin-bottom: 12px;
+        }
+        .ocr-textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 2px solid var(--cream-dark);
+            border-radius: 12px;
+            background: #fff;
+            font-family: inherit;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            resize: vertical;
+            outline: none;
+        }
+        .ocr-textarea:focus {
+            border-color: var(--pink);
+            box-shadow: 0 0 0 3px rgba(243, 139, 182, 0.1);
+        }
+        .ocr-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .ocr-actions .btn-small {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .ocr-actions .btn-save {
+            background: var(--green);
+            color: #fff;
+        }
+        .ocr-actions .btn-cancel {
+            background: var(--cream);
+            color: var(--text-light);
+        }
+
+        /* 图片上传输入框 */
+        #imageInput {
+            display: none;
+        }
+
+        @media (max-width: 600px) {
+            header h1 { font-size: 2rem; }
+            header::before, header::after { display: none; }
+            .heart-score .number { font-size: 3.5rem; }
+            .dimensions { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 用户状态栏 -->
+    <div class="user-bar" id="userBar">
+        <button class="user-btn btn-login" onclick="showLoginModal()">❤️ 登录 / 注册</button>
+    </div>
+
+    <div class="top-bar"></div>
+
+    <header>
+        <h1><span>❤</span> 心动解码器</h1>
+        <p>Crush Meter · 上传聊天记录，AI 解读 ta 的心动程度</p>
+    </header>
+
+    <div class="wave-divider"></div>
+
+    <div class="pink-section">
+        <div class="container">
+            <!-- 输入区域 -->
+            <div class="card">
+                <div class="input-group">
+                    <label>ta 的名字</label>
+                    <input type="text" id="crushName" placeholder="例如：小美" value="">
+                </div>
+                <div class="input-group">
+                    <label>聊天记录（直接粘贴即可）</label>
+                    <textarea id="chatText" placeholder="例如：
+你：在干什么
+小美：刚下班，累死了哈哈哈
+你：辛苦了，吃了吗
+小美：还没呢，不知道吃什么，你推荐一下？
+..."></textarea>
+                </div>
+
+                <!-- 图片上传 -->
+                <div class="input-group">
+                    <label>📸 上传聊天截图（支持 OCR）</label>
+                    <div class="upload-count">
+                        已上传 <span class="count-num" id="uploadCount">0</span> / 10 张
+                    </div>
+                    <div class="upload-area" id="uploadArea" onclick="document.getElementById('imageInput').click()"
+                         ondragover="event.preventDefault(); this.classList.add('dragover')"
+                         ondragleave="this.classList.remove('dragover')"
+                         ondrop="handleDrop(event)">
+                        <span class="upload-icon">📷</span>
+                        <div class="upload-text">点击或拖拽上传图片</div>
+                        <div class="upload-hint">支持 JPG / PNG / WEBP ，单张不超过 5MB</div>
+                    </div>
+                    <input type="file" id="imageInput" accept="image/jpeg,image/png,image/webp" multiple onchange="handleImageSelect(event)">
+
+                    <div class="image-grid" id="imageGrid"></div>
+
+                    <!-- OCR 编辑区 -->
+                    <div class="ocr-edit-section" id="ocrEditSection" style="display:none;">
+                        <div class="section-title">📝 编辑 OCR 结果</div>
+                        <textarea class="ocr-textarea" id="ocrEditTextarea" placeholder="OCR 识别的文字会显示在这里，可以手动修正..."></textarea>
+                        <div class="ocr-actions">
+                            <button class="btn-small btn-save" onclick="saveOcrEdit()">保存修改</button>
+                            <button class="btn-small btn-cancel" onclick="cancelOcrEdit()">取消</button>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn" id="analyzeBtn" onclick="analyze()">🔮 开始解码</button>
+                <div id="loadingArea"></div>
+                <div id="errorArea"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="wave-divider reverse"></div>
+
+    <div class="container">
+        <!-- 结果区域 -->
+        <div class="card pink-card result" id="resultArea">
+            <div class="heart-score">
+                <div class="number" id="heartRate">--</div>
+                <div class="level" id="level">--</div>
+            </div>
+
+            <div class="trend-section" id="trendSection" style="display:none;">
+                <div class="section-title">📈 心动趋势</div>
+                <div class="trend-chart-container" id="trendChartContainer">
+                    <canvas id="trendChart"></canvas>
+                </div>
+                <div class="trend-empty" id="trendEmpty" style="display:none;">
+                    <span class="emoji">🌱</span>
+                    再分析几次就能看到趋势啦~
+                </div>
+            </div>
+
+            <div class="section-title">📊 五维度分析</div>
+            <div class="dimensions" id="dimensions"></div>
+
+            <div class="section-title">💡 关键信号</div>
+            <div class="signals" id="signals"></div>
+
+            <div class="section-title">🌱 行动建议</div>
+            <div class="advice-box" id="advice"></div>
+
+            <div id="riskArea" style="display:none;">
+                <div class="risk-box" id="riskWarning"></div>
+            </div>
+
+            <!-- 注册提示（未登录时显示） -->
+            <div class="register-hint" id="registerHint" style="display:none;">
+                <p>🌸 注册账号，永久保存你的心动档案</p>
+                <button class="hint-btn" onclick="showRegisterModal()">❤️ 保存心动档案</button>
+            </div>
+        </div>
+
+        <!-- 历史记录 -->
+        <div class="card">
+            <div class="section-title">📜 分析历史</div>
+            <div class="history-list" id="historyList">
+                <div class="empty-state">暂无记录，快来解码第一个 crush 吧~ 🌸</div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <span class="leaf">🌿</span> 心动解码器 Crush Meter <span class="leaf">🌸</span>
+    </footer>
+
+    <!-- 登录/注册弹窗 -->
+    <div class="modal-overlay" id="authModal">
+        <div class="modal">
+            <button class="modal-close" onclick="closeAuthModal()">&times;</button>
+            <div class="modal-header">
+                <h3 id="modalTitle">欢迎回来~</h3>
+                <p id="modalSubtitle">登录你的心动档案</p>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="modal-input" id="authUsername" placeholder="用户名" maxlength="20">
+                <input type="password" class="modal-input" id="authPassword" placeholder="密码">
+                <input type="password" class="modal-input" id="authPassword2" placeholder="确认密码" style="display:none;">
+                <button class="modal-btn modal-btn-primary" id="authBtn" onclick="handleAuth()">🔑 登录</button>
+                <div class="modal-footer">
+                    <span id="modalFooterText">还没有账号？</span>
+                    <a onclick="toggleAuthMode()" id="modalToggle">注册一个</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== 认证状态 =====
+        let authMode = 'login'; // 'login' or 'register'
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem('heart_token');
+            if (token) {
+                return { 'Authorization': 'Bearer ' + token };
+            }
+            let guestUid = localStorage.getItem('heart_guest_uid');
+            if (!guestUid) {
+                guestUid = 'guest_' + Math.random().toString(36).substring(2, 15);
+                localStorage.setItem('heart_guest_uid', guestUid);
+            }
+            return { 'X-Guest-UID': guestUid };
+        }
+
+        async function initAuth() {
+            const token = localStorage.getItem('heart_token');
+            if (token) {
+                try {
+                    const res = await fetch('/me', { headers: { 'Authorization': 'Bearer ' + token } });
+                    const data = await res.json();
+                    if (data.user) {
+                        updateUserBar(data.user.username);
+                        return;
+                    }
+                } catch (e) {
+                    console.error('initAuth error', e);
+                }
+                localStorage.removeItem('heart_token');
+            }
+            updateUserBar(null);
+        }
+
+        function updateUserBar(username) {
+            const bar = document.getElementById('userBar');
+            if (username) {
+                bar.innerHTML = `
+                    <span class="user-name">👤 ${username} 的心动档案</span>
+                    <button class="user-btn btn-logout" onclick="logout()">退出</button>
+                `;
+            } else {
+                bar.innerHTML = `
+                    <button class="user-btn btn-login" onclick="showLoginModal()">❤️ 登录 / 注册</button>
+                `;
+            }
+        }
+
+        function showLoginModal() {
+            authMode = 'login';
+            document.getElementById('authModal').classList.add('show');
+            document.getElementById('modalTitle').textContent = '欢迎回来~';
+            document.getElementById('modalSubtitle').textContent = '登录你的心动档案';
+            document.getElementById('authBtn').textContent = '🔑 登录';
+            document.getElementById('authPassword2').style.display = 'none';
+            document.getElementById('modalFooterText').textContent = '还没有账号？';
+            document.getElementById('modalToggle').textContent = '注册一个';
+        }
+
+        function showRegisterModal() {
+            authMode = 'register';
+            document.getElementById('authModal').classList.add('show');
+            document.getElementById('modalTitle').textContent = '保存心动档案~';
+            document.getElementById('modalSubtitle').textContent = '取个名字，让心动有迹可寻';
+            document.getElementById('authBtn').textContent = '💕 创建心动档案';
+            document.getElementById('authPassword2').style.display = 'block';
+            document.getElementById('modalFooterText').textContent = '已有账号？';
+            document.getElementById('modalToggle').textContent = '直接登录';
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.remove('show');
+            document.getElementById('authUsername').value = '';
+            document.getElementById('authPassword').value = '';
+            document.getElementById('authPassword2').value = '';
+        }
+
+        function toggleAuthMode() {
+            if (authMode === 'login') {
+                showRegisterModal();
+            } else {
+                showLoginModal();
+            }
+        }
+
+        async function handleAuth() {
+            const username = document.getElementById('authUsername').value.trim();
+            const password = document.getElementById('authPassword').value;
+            const password2 = document.getElementById('authPassword2').value;
+            const btn = document.getElementById('authBtn');
+
+            if (!username || !password) {
+                alert('请填写用户名和密码');
+                return;
+            }
+
+            btn.disabled = true;
+
+            try {
+                if (authMode === 'register') {
+                    if (password !== password2) {
+                        alert('两次输入的密码不一致');
+                        btn.disabled = false;
+                        return;
+                    }
+                    const guestUid = localStorage.getItem('heart_guest_uid');
+                    const formData = new FormData();
+                    formData.append('username', username);
+                    formData.append('password', password);
+                    if (guestUid) formData.append('guest_uid', guestUid);
+
+                    const res = await fetch('/register', { method: 'POST', body: formData });
+                    const data = await res.json();
+
+                    if (data.error) {
+                        alert(data.error);
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    localStorage.setItem('heart_token', data.token);
+                    localStorage.removeItem('heart_guest_uid');
+                    updateUserBar(data.user.username);
+                    closeAuthModal();
+                    loadHistory();
+                    alert(`🎉 注册成功！已迁移 ${data.migrated} 条心动记录`);
+                } else {
+                    const formData = new FormData();
+                    formData.append('username', username);
+                    formData.append('password', password);
+
+                    const res = await fetch('/login', { method: 'POST', body: formData });
+                    const data = await res.json();
+
+                    if (data.error) {
+                        alert(data.error);
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    localStorage.setItem('heart_token', data.token);
+                    localStorage.removeItem('heart_guest_uid');
+                    updateUserBar(data.user.username);
+                    closeAuthModal();
+                    loadHistory();
+                }
+            } catch (err) {
+                alert('请求失败: ' + err.message);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('heart_token');
+            localStorage.removeItem('heart_guest_uid');
+            updateUserBar(null);
+            loadHistory();
+        }
+
+        // 页面加载时初始化
+        initAuth();
+        loadHistory();
+
+        async function analyze() {
+            const crushName = document.getElementById('crushName').value.trim();
+            let chatText = document.getElementById('chatText').value.trim();
+            const btn = document.getElementById('analyzeBtn');
+            const loading = document.getElementById('loadingArea');
+            const errorArea = document.getElementById('errorArea');
+            const resultArea = document.getElementById('resultArea');
+
+            // 如果没有手动输入但有 OCR 结果，自动使用 OCR 文本
+            if (!chatText) {
+                const ocrText = await getMergedOcrText();
+                if (ocrText) {
+                    chatText = ocrText;
+                    document.getElementById('chatText').value = ocrText;
+                }
+            }
+
+            if (!crushName || !chatText) {
+                errorArea.innerHTML = '<div class="error-box">请填写 ta 的名字和聊天记录 🌸</div>';
+                return;
+            }
+
+            btn.disabled = true;
+            loading.innerHTML = '<div class="loading">正在解码心动信号...</div>';
+            errorArea.innerHTML = '';
+            resultArea.classList.remove('show');
+
+            try {
+                const formData = new FormData();
+                formData.append('crush_name', crushName);
+                formData.append('chat_text', chatText);
+
+                // 收集所有图片的 OCR 文本
+                const ocrTexts = [];
+                document.querySelectorAll('.image-item').forEach(item => {
+                    const id = item.dataset.id;
+                    const status = item.querySelector('.img-status');
+                    if (status && status.classList.contains('done')) {
+                        // 从后端获取 OCR 文本（已经在 images 数组中）
+                        // 这里用一个简单方法：直接传空，让后端去查询
+                    }
+                });
+
+                // 更好的方法：直接传入合并的 OCR 文本
+                const mergedOcr = await getMergedOcrText();
+                if (mergedOcr) {
+                    formData.append('ocr_text', mergedOcr);
+                }
+
+                const res = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData,
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    errorArea.innerHTML = `<div class="error-box">分析失败：${data.error}</div>`;
+                    return;
+                }
+
+                showResult(data);
+                loadHistory();
+
+            } catch (err) {
+                errorArea.innerHTML = `<div class="error-box">请求失败：${err.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                loading.innerHTML = '';
+            }
+        }
+
+        function showResult(data) {
+            document.getElementById('heartRate').textContent = data.heart_rate;
+            document.getElementById('level').textContent = data.level;
+
+            // 五维度
+            const dimContainer = document.getElementById('dimensions');
+            const dimMap = {
+                initiative: '主动性',
+                response_quality: '回应质量',
+                emotional_temp: '情绪温度',
+                time_signals: '时间信号',
+                exclusivity: '专属感'
+            };
+            dimContainer.innerHTML = '';
+            for (const [key, label] of Object.entries(dimMap)) {
+                const d = data.dimensions[key] || { score: 0, evidence: '' };
+                const div = document.createElement('div');
+                div.className = 'dim-item';
+                div.title = d.evidence;
+                div.innerHTML = `
+                    <div class="dim-name">${label}</div>
+                    <div class="dim-score">${d.score}</div>
+                    <div class="dim-bar"><div class="dim-bar-fill" style="width:${d.score}%"></div></div>
+                `;
+                dimContainer.appendChild(div);
+            }
+
+            // 关键信号
+            const sigContainer = document.getElementById('signals');
+            sigContainer.innerHTML = '';
+            (data.key_signals || []).forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'signal-item';
+                div.textContent = s;
+                sigContainer.appendChild(div);
+            });
+
+            // 建议
+            document.getElementById('advice').textContent = data.advice || '暂无建议';
+
+            // 风险预警
+            const riskArea = document.getElementById('riskArea');
+            if (data.risk_warning) {
+                document.getElementById('riskWarning').textContent = '⚠️ ' + data.risk_warning;
+                riskArea.style.display = 'block';
+            } else {
+                riskArea.style.display = 'none';
+            }
+
+            document.getElementById('resultArea').classList.add('show');
+            // 加载趋势
+            loadTrend(data.crush_name);
+            // 未登录时显示注册提示
+            const token = localStorage.getItem('heart_token');
+            document.getElementById('registerHint').style.display = token ? 'none' : 'block';
+            // 滚动到结果
+            setTimeout(() => {
+                resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/history?limit=20', { headers: getAuthHeaders() });
+                const data = await res.json();
+                const container = document.getElementById('historyList');
+
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<div class="empty-state">暂无记录，快来解码第一个 crush 吧~ 🌸</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                data.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'history-item';
+                    const date = new Date(item.created_at).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    div.innerHTML = `
+                        <div>
+                            <div class="h-name">${item.crush_name}</div>
+                            <div class="h-date">${date} · ${item.level}</div>
+                        </div>
+                        <div class="h-score">${item.heart_rate}</div>
+                    `;
+                    div.onclick = () => showResult(item);
+                    container.appendChild(div);
+                });
+            } catch (err) {
+                console.error('loadHistory error', err);
+            }
+        }
+
+        let trendChartInstance = null;
+
+        async function loadTrend(crushName) {
+            const trendSection = document.getElementById('trendSection');
+            const chartContainer = document.getElementById('trendChartContainer');
+            const emptyState = document.getElementById('trendEmpty');
+
+            try {
+                const res = await fetch(`/trend?crush_name=${encodeURIComponent(crushName)}`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+
+                trendSection.style.display = 'block';
+
+                if (!data || data.length < 2) {
+                    chartContainer.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    return;
+                }
+
+                chartContainer.style.display = 'block';
+                emptyState.style.display = 'none';
+                renderTrend(data);
+            } catch (err) {
+                console.error('loadTrend error', err);
+                trendSection.style.display = 'none';
+            }
+        }
+
+        function renderTrend(data) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+
+            if (trendChartInstance) {
+                trendChartInstance.destroy();
+            }
+
+            const labels = data.map(d => {
+                const date = new Date(d.created_at);
+                return `${date.getMonth() + 1}/${date.getDate()}`;
+            });
+            const scores = data.map(d => d.heart_rate);
+
+            // 创建渐变填充
+            const gradient = ctx.createLinearGradient(0, 0, 0, 260);
+            gradient.addColorStop(0, 'rgba(243, 139, 182, 0.3)');
+            gradient.addColorStop(1, 'rgba(243, 139, 182, 0.0)');
+
+            trendChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '心动指数',
+                        data: scores,
+                        borderColor: '#F38BB6',
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#7DAE3E',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#5A8221',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#7DAE3E',
+                            borderWidth: 1,
+                            cornerRadius: 12,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    const idx = context.dataIndex;
+                                    const level = data[idx].level;
+                                    return `心动指数: ${context.parsed.y}  (${level})`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)',
+                                borderDash: [5, 5]
+                            },
+                            ticks: {
+                                color: '#999',
+                                font: { size: 11 }
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                color: '#999',
+                                font: { size: 11 }
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+        }
+
+        // ===== 图片 OCR 相关 =====
+        let editingImageId = null;
+
+        async function handleImageSelect(event) {
+            const files = Array.from(event.target.files);
+            if (files.length === 0) return;
+            await uploadImages(files);
+            event.target.value = '';
+        }
+
+        async function handleDrop(event) {
+            event.preventDefault();
+            document.getElementById('uploadArea').classList.remove('dragover');
+            const files = Array.from(event.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+            if (files.length === 0) return;
+            await uploadImages(files);
+        }
+
+        async function uploadImages(files) {
+            const formData = new FormData();
+            for (const file of files) {
+                formData.append('files', file);
+            }
+
+            try {
+                const res = await fetch('/upload_images', {
+                    method: 'POST',
+                    body: formData,
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                // 自动对每张图片执行 OCR
+                for (const img of data.images) {
+                    doOcr(img.id);
+                }
+
+        
+        async function getMergedOcrText() {
+            try {
+                const res = await fetch('/images', { headers: getAuthHeaders() });
+                const images = await res.json();
+                const texts = images
+                    .filter(img => img.status === 'done' && img.ocr_text)
+                    .map(img => img.ocr_text)
+                    .filter(t => t.trim());
+                return texts.join('\n\n');
+            } catch (err) {
+                console.error('getMergedOcrText error', err);
+                return '';
+            }
+        }
+        loadImages();
+            } catch (err) {
+                alert('上传失败: ' + err.message);
+            }
+        }
+
+        async function loadImages() {
+            try {
+                const res = await fetch('/images', { headers: getAuthHeaders() });
+                const images = await res.json();
+                renderImageGrid(images);
+                document.getElementById('uploadCount').textContent = images.length;
+            } catch (err) {
+                console.error('loadImages error', err);
+            }
+        }
+
+        function renderImageGrid(images) {
+            const grid = document.getElementById('imageGrid');
+            if (images.length === 0) {
+                grid.innerHTML = '';
+                return;
+            }
+
+            grid.innerHTML = images.map(img => `
+                <div class="image-item" data-id="${img.id}">
+                    <span class="img-status ${img.status}">${statusLabel(img.status)}</span>
+                    <img class="img-thumb" src="${img.url}" alt="${img.original_name}" loading="lazy"
+                         onclick="editOcr(${img.id}, \`${escapeHtml(img.ocr_text || '')}\`)" style="cursor:pointer;">
+                    <div class="img-name">${escapeHtml(img.original_name)}</div>
+                    <div class="img-actions">
+                        <button class="img-btn ocr" onclick="doOcr(${img.id})" ${img.status === 'processing' ? 'disabled' : ''}>🔍 识别</button>
+                        <button class="img-btn ocr" onclick="editOcr(${img.id}, \`${escapeHtml(img.ocr_text || '')}\`)" style="background:#E3F2FD;color:#1976D2;">📝 编辑</button>
+                        <button class="img-btn delete" onclick="deleteImage(${img.id})">🗑️ 删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function statusLabel(status) {
+            const map = { pending: '待识别', processing: '识别中', done: '已完成', error: '失败' };
+            return map[status] || status;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function doOcr(imageId) {
+            const item = document.querySelector(`.image-item[data-id="${imageId}"]`);
+            if (item) {
+                const status = item.querySelector('.img-status');
+                status.textContent = '识别中';
+                status.className = 'img-status processing';
+            }
+
+            try {
+                const res = await fetch(`/images/${imageId}/ocr`, {
+                    method: 'POST',
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+        
+        async function getMergedOcrText() {
+            try {
+                const res = await fetch('/images', { headers: getAuthHeaders() });
+                const images = await res.json();
+                const texts = images
+                    .filter(img => img.status === 'done' && img.ocr_text)
+                    .map(img => img.ocr_text)
+                    .filter(t => t.trim());
+                return texts.join('\n\n');
+            } catch (err) {
+                console.error('getMergedOcrText error', err);
+                return '';
+            }
+        }
+        loadImages();
+            } catch (err) {
+                console.error('OCR error', err);
+        
+        async function getMergedOcrText() {
+            try {
+                const res = await fetch('/images', { headers: getAuthHeaders() });
+                const images = await res.json();
+                const texts = images
+                    .filter(img => img.status === 'done' && img.ocr_text)
+                    .map(img => img.ocr_text)
+                    .filter(t => t.trim());
+                return texts.join('\n\n');
+            } catch (err) {
+                console.error('getMergedOcrText error', err);
+                return '';
+            }
+        }
+        loadImages();
+            }
+        }
+
+        async function deleteImage(imageId) {
+            if (!confirm('确定删除这张图片吗？')) return;
+
+            try {
+                const res = await fetch(`/images/${imageId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                if (res.ok) {
+            
+        async function getMergedOcrText() {
+            try {
+                const res = await fetch('/images', { headers: getAuthHeaders() });
+                const images = await res.json();
+                const texts = images
+                    .filter(img => img.status === 'done' && img.ocr_text)
+                    .map(img => img.ocr_text)
+                    .filter(t => t.trim());
+                return texts.join('\n\n');
+            } catch (err) {
+                console.error('getMergedOcrText error', err);
+                return '';
+            }
+        }
+        loadImages();
+                }
+            } catch (err) {
+                alert('删除失败: ' + err.message);
+            }
+        }
+
+        function editOcr(imageId, text) {
+            editingImageId = imageId;
+            document.getElementById('ocrEditTextarea').value = text;
+            document.getElementById('ocrEditSection').style.display = 'block';
+            document.getElementById('ocrEditSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function saveOcrEdit() {
+            if (!editingImageId) return;
+            const text = document.getElementById('ocrEditTextarea').value;
+
+            try {
+                const formData = new FormData();
+                formData.append('ocr_text', text);
+                const res = await fetch(`/images/${editingImageId}/ocr`, {
+                    method: 'PUT',
+                    body: formData,
+                    headers: getAuthHeaders()
+                });
+                if (res.ok) {
+                    document.getElementById('ocrEditSection').style.display = 'none';
+                    editingImageId = null;
+            
+        async function getMergedOcrText() {
+            try {
+                const res = await fetch('/images', { headers: getAuthHeaders() });
+                const images = await res.json();
+                const texts = images
+                    .filter(img => img.status === 'done' && img.ocr_text)
+                    .map(img => img.ocr_text)
+                    .filter(t => t.trim());
+                return texts.join('\n\n');
+            } catch (err) {
+                console.error('getMergedOcrText error', err);
+                return '';
+            }
+        }
+        loadImages();
+                }
+            } catch (err) {
+                alert('保存失败: ' + err.message);
+            }
+        }
+
+        function cancelOcrEdit() {
+            document.getElementById('ocrEditSection').style.display = 'none';
+            editingImageId = null;
+        }
+
+        // 页面加载时加载图片列表
+
+        async function getMergedOcrText() {
+            try {
+                const res = await fetch('/images', { headers: getAuthHeaders() });
+                const images = await res.json();
+                const texts = images
+                    .filter(img => img.status === 'done' && img.ocr_text)
+                    .map(img => img.ocr_text)
+                    .filter(t => t.trim());
+                return texts.join('\n\n');
+            } catch (err) {
+                console.error('getMergedOcrText error', err);
+                return '';
+            }
+        }
+        loadImages();
+    </script>
+</body>
+</html>
