@@ -803,6 +803,133 @@
             display: none;
         }
 
+        /* Crush心电图 */
+        .ecg-section {
+            margin-top: 28px;
+            padding-top: 24px;
+            border-top: 2px dashed var(--pink-light);
+        }
+        .ecg-entrance {
+            background: linear-gradient(135deg, var(--pink-pale), #fff);
+            border: 2px solid var(--pink-light);
+            border-radius: 20px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .ecg-entrance:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(243, 139, 182, 0.2);
+            border-color: var(--pink);
+        }
+        .ecg-entrance .heart-pulse {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            display: inline-block;
+            animation: heartbeat 1.5s ease-in-out infinite;
+        }
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            14% { transform: scale(1.15); }
+            28% { transform: scale(1); }
+            42% { transform: scale(1.15); }
+            70% { transform: scale(1); }
+        }
+        .ecg-entrance h3 {
+            color: var(--pink);
+            font-size: 1.3rem;
+            margin-bottom: 8px;
+        }
+        .ecg-entrance p {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+        .ecg-chart-area {
+            display: none;
+            margin-top: 20px;
+            background: #fff;
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(243, 139, 182, 0.1);
+        }
+        .ecg-chart-area.show {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+        .ecg-controls {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .ecg-toggle {
+            padding: 8px 20px;
+            border: 2px solid var(--pink-light);
+            border-radius: 50px;
+            background: #fff;
+            color: var(--pink);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+        .ecg-toggle:hover {
+            background: var(--pink-pale);
+        }
+        .ecg-toggle.active {
+            background: linear-gradient(135deg, var(--pink), var(--pink-light));
+            color: #fff;
+            border-color: var(--pink);
+        }
+        .ecg-empty {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-light);
+        }
+        .ecg-empty .emoji {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            display: block;
+            animation: heartbeat 2s ease-in-out infinite;
+        }
+        .ecg-empty h4 {
+            color: var(--pink);
+            font-size: 1.2rem;
+            margin-bottom: 8px;
+        }
+        .ecg-empty p {
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        .ecg-stats {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--cream-dark);
+        }
+        .ecg-stat {
+            text-align: center;
+        }
+        .ecg-stat .number {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--green-dark);
+        }
+        .ecg-stat .label {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+        .ecg-chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+
         @media (max-width: 600px) {
             header h1 { font-size: 2rem; }
             header::before, header::after { display: none; }
@@ -913,6 +1040,43 @@
                 <div class="risk-box" id="riskWarning"></div>
             </div>
 
+
+            <!-- Crush心电图 -->
+            <div class="ecg-section" id="ecgSection" style="display:none;">
+                <div class="ecg-entrance" onclick="toggleEcg()">
+                    <span class="heart-pulse">💓</span>
+                    <h3>Crush 心电图</h3>
+                    <p>查看你们的关系变化趋势</p>
+                </div>
+                <div class="ecg-chart-area" id="ecgChartArea">
+                    <div class="ecg-controls">
+                        <button class="ecg-toggle active" onclick="switchEcgGranularity('day', this)" id="btnDay">按天</button>
+                        <button class="ecg-toggle" onclick="switchEcgGranularity('week', this)" id="btnWeek">按周</button>
+                    </div>
+                    <div id="ecgEmptyState" class="ecg-empty" style="display:none;">
+                        <span class="emoji">💓</span>
+                        <h4>暂无数据</h4>
+                        <p>多分析几次就能看到心跳曲线啦~<br>每天分析一次，就能追踪关系变化趋势！</p>
+                    </div>
+                    <div id="ecgChartContainer" class="ecg-chart-container" style="display:none;">
+                        <canvas id="ecgCanvas"></canvas>
+                    </div>
+                    <div class="ecg-stats" id="ecgStats" style="display:none;">
+                        <div class="ecg-stat">
+                            <div class="number" id="ecgAvg">--</div>
+                            <div class="label">平均心动指数</div>
+                        </div>
+                        <div class="ecg-stat">
+                            <div class="number" id="ecgDays">--</div>
+                            <div class="label">统计天数</div>
+                        </div>
+                        <div class="ecg-stat">
+                            <div class="number" id="ecgMax">--</div>
+                            <div class="label">最高心动指数</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <!-- 注册提示（未登录时显示） -->
             <div class="register-hint" id="registerHint" style="display:none;">
                 <p>🌸 注册账号，永久保存你的心动档案</p>
@@ -1243,6 +1407,8 @@
             document.getElementById('resultArea').classList.add('show');
             // 加载趋势
             loadTrend(data.crush_name);
+            // 显示心电图入口
+            document.getElementById('ecgSection').style.display = 'block';
             // 未登录时显示注册提示
             const token = localStorage.getItem('heart_token');
             document.getElementById('registerHint').style.display = token ? 'none' : 'block';
@@ -1656,6 +1822,146 @@
             }
         }
         loadImages();
+
+        // ===== Crush心电图 =====
+        let ecgChart = null;
+        let currentEcgGranularity = 'day';
+
+        function toggleEcg() {
+            const area = document.getElementById('ecgChartArea');
+            const isShow = area.classList.toggle('show');
+            if (isShow) {
+                loadTimeline();
+            }
+        }
+
+        function switchEcgGranularity(mode, btn) {
+            currentEcgGranularity = mode;
+            document.querySelectorAll('.ecg-toggle').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadTimeline();
+        }
+
+        async function loadTimeline() {
+            const crushName = document.getElementById('crushName').value.trim();
+            if (!crushName) return;
+
+            const headers = getAuthHeaders();
+            const url = `/timeline?crush_name=${encodeURIComponent(crushName)}&granularity=${currentEcgGranularity}`;
+
+            try {
+                const res = await fetch(url, { headers });
+                const data = await res.json();
+
+                if (data.error) {
+                    console.error(data.error);
+                    return;
+                }
+
+                const emptyState = document.getElementById('ecgEmptyState');
+                const chartContainer = document.getElementById('ecgChartContainer');
+                const stats = document.getElementById('ecgStats');
+
+                if (!data.data || data.data.length < 2) {
+                    emptyState.style.display = 'block';
+                    chartContainer.style.display = 'none';
+                    stats.style.display = 'none';
+                } else {
+                    emptyState.style.display = 'none';
+                    chartContainer.style.display = 'block';
+                    stats.style.display = 'flex';
+                    renderEcgChart(data.data);
+
+                    const rates = data.data.map(d => d.heart_rate);
+                    const avg = Math.round(rates.reduce((a, b) => a + b, 0) / rates.length);
+                    const max = Math.round(Math.max(...rates));
+                    document.getElementById('ecgAvg').textContent = avg;
+                    document.getElementById('ecgDays').textContent = data.total_points;
+                    document.getElementById('ecgMax').textContent = max;
+                }
+            } catch (e) {
+                console.error('Timeline error:', e);
+            }
+        }
+
+        function renderEcgChart(data) {
+            const ctx = document.getElementById('ecgCanvas').getContext('2d');
+
+            if (ecgChart) {
+                ecgChart.destroy();
+            }
+
+            const labels = data.map(d => d.period);
+            const values = data.map(d => d.heart_rate);
+
+            ecgChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '心动指数',
+                        data: values,
+                        borderColor: '#F38BB6',
+                        backgroundColor: 'rgba(243, 139, 182, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        pointBackgroundColor: '#F38BB6',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 3,
+                        pointRadius: 6,
+                        pointHoverRadius: 10,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(243, 139, 182, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            padding: 12,
+                            cornerRadius: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    const idx = context.dataIndex;
+                                    const item = data[idx];
+                                    return [`心动指数: ${item.heart_rate}`, `阶段: ${item.level}`, `分析${item.count}次`];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(243, 139, 182, 0.1)',
+                                borderDash: [5, 5]
+                            },
+                            ticks: {
+                                color: '#777',
+                                font: { size: 11 }
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                color: '#777',
+                                font: { size: 11 },
+                                maxRotation: 45
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1500,
+                        easing: 'easeInOutQuart'
+                    }
+                }
+            });
+        }
     </script>
 </body>
 </html>

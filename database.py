@@ -374,3 +374,89 @@ def clear_user_images(user_id: int = None, guest_uid: str = None) -> int:
     deleted = cursor.rowcount
     conn.close()
     return deleted
+
+
+# ---- 时间轴/心电图 ----
+
+def get_timeline(crush_name: str, user_id: int = None, guest_uid: str = None, granularity: str = 'day') -> dict:
+    """
+    获取某个 crush 的心动指数时间轴
+    granularity: 'day' 按天聚合, 'week' 按周聚合
+    返回: {"granularity": str, "total_points": int, "data": [...]}
+    """
+    conn = get_conn()
+    conn.row_factory = sqlite3.Row
+
+    # 基础查询条件
+    if user_id:
+        where_clause = "crush_name = ? AND user_id = ?"
+        params = (crush_name, user_id)
+    elif guest_uid:
+        where_clause = "crush_name = ? AND guest_uid = ?"
+        params = (crush_name, guest_uid)
+    else:
+        conn.close()
+        return {"granularity": granularity, "total_points": 0, "data": []}
+
+    if granularity == 'week':
+        # 按周聚合: YYYY-WW 格式
+        rows = conn.execute(
+            f"""
+            SELECT
+                strftime('%Y-%W', created_at) as period,
+                ROUND(AVG(heart_rate), 1) as avg_heart_rate,
+                COUNT(*) as analysis_count,
+                MAX(created_at) as last_date,
+                (SELECT level FROM analyses AS sub
+                 WHERE sub.crush_name = a.crush_name
+                 AND strftime('%Y-%W', sub.created_at) = strftime('%Y-%W', a.created_at)
+                 AND {where_clause.replace('crush_name = ?', 'sub.crush_name = ?').replace('user_id = ?', 'sub.user_id = ?').replace('guest_uid = ?', 'sub.guest_uid = ?')}
+                 ORDER BY sub.created_at DESC LIMIT 1
+                ) as latest_level
+            FROM analyses AS a
+            WHERE {where_clause}
+            GROUP BY strftime('%Y-%W', created_at)
+            ORDER BY period ASC
+            """,
+            params * 2  # 子查询和主查询都需要参数
+        ).fetchall()
+    else:
+        # 按天聚合
+        rows = conn.execute(
+            f"""
+            SELECT
+                date(created_at) as period,
+                ROUND(AVG(heart_rate), 1) as avg_heart_rate,
+                COUNT(*) as analysis_count,
+                MAX(created_at) as last_date,
+                (SELECT level FROM analyses AS sub
+                 WHERE sub.crush_name = a.crush_name
+                 AND date(sub.created_at) = date(a.created_at)
+                 AND {where_clause.replace('crush_name = ?', 'sub.crush_name = ?').replace('user_id = ?', 'sub.user_id = ?').replace('guest_uid = ?', 'sub.guest_uid = ?')}
+                 ORDER BY sub.created_at DESC LIMIT 1
+                ) as latest_level
+            FROM analyses AS a
+            WHERE {where_clause}
+            GROUP BY date(created_at)
+            ORDER BY period ASC
+            """,
+            params * 2
+        ).fetchall()
+
+    conn.close()
+
+    data = []
+    for row in rows:
+        data.append({
+            "period": row["period"],
+            "heart_rate": row["avg_heart_rate"],
+            "level": row["latest_level"] or "未知",
+            "count": row["analysis_count"],
+            "last_date": row["last_date"]
+        })
+
+    return {
+        "granularity": granularity,
+        "total_points": len(data),
+        "data": data
+    }

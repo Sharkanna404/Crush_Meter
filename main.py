@@ -20,7 +20,7 @@ from openai import OpenAI
 
 from prompt import build_analysis_messages
 from database import (
-    init_db, save_analysis, get_history, get_trend,
+    init_db, save_analysis, get_history, get_trend, get_timeline,
     create_user, get_user_by_username, get_user_by_id,
     generate_guest_uid, migrate_guest_to_user,
     save_image, get_images, get_image_by_id, delete_image,
@@ -528,6 +528,28 @@ async def analyze(
         result["_note"] = f"API 暂时不可用，使用演示数据（原因: {str(e)}）"
         return JSONResponse(result)
 
+
+
+@app.get("/timeline")
+async def timeline(
+    crush_name: str,
+    granularity: str = "day",
+    authorization: str = Header(None),
+    x_guest_uid: str = Header(None)
+):
+    """获取某个 crush 的心动指数时间轴（按天/周聚合）"""
+    user = get_current_user(authorization)
+    user_id = user["id"] if user else None
+    guest_uid = x_guest_uid if not user else None
+
+    if not crush_name:
+        return JSONResponse({"error": "请提供 crush 名称"}, status_code=400)
+
+    if granularity not in ("day", "week"):
+        granularity = "day"
+
+    result = get_timeline(crush_name, user_id=user_id, guest_uid=guest_uid, granularity=granularity)
+    return result
 
 if __name__ == "__main__":
     import uvicorn
