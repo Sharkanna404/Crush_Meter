@@ -171,17 +171,21 @@ def is_timestamp(text: str) -> bool:
 
 def do_ocr(image_path: Path) -> str:
     """
-    使用 pytesseract 进行 OCR，支持微信聊天截图的左右分栏识别
-    左侧消息标注 [对方]，右侧标注 [自己]，中间时间戳标注 [时间]
+    使用 pytesseract 进行 OCR，支持微信聊天截图的智能分栏识别
+    核心逻辑：基于气泡边界间隙 + 颜色检测，而非单纯文本块位置
     """
     try:
         from PIL import Image
         import pytesseract
+        import numpy as np
 
         img = Image.open(str(image_path))
         img_width = img.width
         img_height = img.height
         center_x = img_width // 2
+
+        # 转换为 numpy 数组用于颜色分析
+        img_array = np.array(img)
 
         # 使用 image_to_data 获取每个文本块的位置信息
         data = pytesseract.image_to_data(
@@ -190,7 +194,7 @@ def do_ocr(image_path: Path) -> str:
             output_type=pytesseract.Output.DICT
         )
 
-        # 收集有效文本块
+        # ========== 第一步：收集有效文本块 ==========
         blocks = []
         n_boxes = len(data['text'])
         for i in range(n_boxes):
@@ -204,33 +208,24 @@ def do_ocr(image_path: Path) -> str:
             w = data['width'][i]
             h = data['height'][i]
 
-            # 过滤太小的块（可能是噪点）
             if w < 10 or h < 10:
                 continue
 
+            # 计算边界间隙（关键特征）
+            left_gap = x
+            right_gap = img_width - (x + w)
             text_center = x + w // 2
 
-            # 判断位置：左侧=对方，右侧=自己，中间=时间戳
-            # 微信截图特征：对方气泡在左，自己气泡在右
-            margin = img_width * 0.06  # 6% 容差区域
-
-            # 优先检测时间戳格式（时间戳可能在任何位置）
-            if is_timestamp(text):
-                speaker = "[时间]"
-            elif text_center < center_x - margin:
-                speaker = "[对方]"
-            elif text_center > center_x + margin:
-                speaker = "[自己]"
-            else:
-                speaker = "[时间]"
+            # 颜色分析：在文本块周围采样背景色
+            color_hint = detect_bubble_color(img_array, x, y, w, h)
 
             blocks.append({
                 'text': text,
-                'x': x,
-                'y': y,
-                'w': w,
-                'h': h,
-                'speaker': speaker,
+                'x': x, 'y': y, 'w': w, 'h': h,
+                'left_gap': left_gap,
+                'right_gap': right_gap,
+                'center': text_center,
+                'color_hint': color_hint,
                 'conf': conf
             })
 
@@ -239,28 +234,25 @@ def do_ocr(image_path: Path) -> str:
             text = pytesseract.image_to_string(str(image_path), lang="chi_sim+eng")
             return text.strip()
 
-        # 按 y 坐标排序（从上到下）
+        # ========== 第二步：按 y 坐标分组为气泡 ==========
         blocks.sort(key=lambda b: b['y'])
 
-        # 按气泡分组：y 距离近且同一说话人的文本块形成一个气泡
         bubble_groups = []
         current_group = [blocks[0]]
 
         for block in blocks[1:]:
-            last_block = current_group[-1]
+            last = current_group[-1]
+            # 判断是否属于同一气泡：y距离近 或 边界特征相似
+            y_gap = block['y'] - (last['y'] + last['h'])
+            y_threshold = max(last['h'] * 2, 30)
 
-            # 判断是否属于同一气泡：
-            # 1. 同一说话人
-            # 2. y 距离不大（同一气泡内或相邻气泡）
-            same_speaker = block['speaker'] == last_block['speaker']
-            y_gap = block['y'] - (last_block['y'] + last_block['h'])
-            y_threshold = max(last_block['h'] * 1.2, 20)
+            # 边界特征相似性：同一说话人的气泡边界模式应该一致
+            edge_similar = (
+                abs(block['left_gap'] - last['left_gap']) < img_width * 0.15 or
+                abs(block['right_gap'] - last['right_gap']) < img_width * 0.15
+            )
 
-            # 时间戳始终单独成组
-            if last_block['speaker'] == "[时间]" or block['speaker'] == "[时间]":
-                bubble_groups.append(current_group)
-                current_group = [block]
-            elif same_speaker and y_gap < y_threshold:
+            if y_gap < y_threshold and edge_similar:
                 current_group.append(block)
             else:
                 bubble_groups.append(current_group)
@@ -268,74 +260,164 @@ def do_ocr(image_path: Path) -> str:
 
         bubble_groups.append(current_group)
 
-        # 处理每个气泡组，合并内部文本
+        # ========== 第三步：判断每个气泡的说话人 ==========
         merged_lines = []
         for group in bubble_groups:
             if not group:
                 continue
 
-            speaker = group[0]['speaker']
+            # 检查是否是时间戳
+            combined_text = ' '.join(b['text'] for b in group)
+            if is_timestamp(combined_text):
+                merged_lines.append({
+                    'speaker': '[时间]',
+                    'text': combined_text,
+                    'y': group[0]['y']
+                })
+                continue
 
-            if speaker == "[时间]":
-                # 时间戳直接合并
-                text = ' '.join(b['text'] for b in group)
-                merged_lines.append({'speaker': speaker, 'text': text, 'y': group[0]['y']})
+            # 分析整个气泡组的边界特征
+            avg_left_gap = sum(b['left_gap'] for b in group) / len(group)
+            avg_right_gap = sum(b['right_gap'] for b in group) / len(group)
+            min_left = min(b['left_gap'] for b in group)
+            min_right = min(b['right_gap'] for b in group)
+
+            # 颜色投票
+            color_votes = {'self': 0, 'other': 0, 'unknown': 0}
+            for b in group:
+                if b['color_hint'] == 'green':
+                    color_votes['self'] += 1
+                elif b['color_hint'] == 'white':
+                    color_votes['other'] += 1
+                else:
+                    color_votes['unknown'] += 1
+
+            # 综合判断
+            # 判断 1：哪侧贴边？
+            is_right_aligned = min_right < min_left * 0.6  # 右侧很贴边
+            is_left_aligned = min_left < min_right * 0.6   # 左侧很贴边
+
+            # 判断 2：平均间隙偏移
+            gap_ratio = avg_left_gap / (avg_right_gap + 1)  # +1 避免除零
+
+            # 综合得分
+            self_score = 0
+            other_score = 0
+
+            if is_right_aligned:
+                self_score += 3
+            if is_left_aligned:
+                other_score += 3
+            if gap_ratio > 2.0:
+                other_score += 2  # 左侧间隙大得多
+            if gap_ratio < 0.5:
+                self_score += 2   # 右侧间隙大得多
+            if color_votes['self'] > color_votes['other']:
+                self_score += 2
+            if color_votes['other'] > color_votes['self']:
+                other_score += 2
+
+            # 中心位置作为辅助
+            avg_center = sum(b['center'] for b in group) / len(group)
+            if avg_center > center_x + img_width * 0.05:
+                self_score += 1
+            elif avg_center < center_x - img_width * 0.05:
+                other_score += 1
+
+            # 确定说话人
+            if self_score > other_score:
+                speaker = '[自己]'
+            elif other_score > self_score:
+                speaker = '[对方]'
             else:
-                # 消息气泡：按行分组，同一行内按 x 排序
-                # 先按 y 将文本块分行
-                group.sort(key=lambda b: b['y'])
-                rows = []
-                current_row = [group[0]]
-                row_threshold = max(group[0]['h'] * 1.5, 15)
+                # 分不清，看中心位置
+                speaker = '[自己]' if avg_center > center_x else '[对方]'
 
-                for b in group[1:]:
-                    if abs(b['y'] - current_row[-1]['y']) < row_threshold:
-                        current_row.append(b)
-                    else:
-                        rows.append(current_row)
-                        current_row = [b]
-                rows.append(current_row)
+            # 合并文本（按行分组）
+            group.sort(key=lambda b: b['y'])
+            lines = []
+            current_line = [group[0]]
+            for b in group[1:]:
+                if abs(b['y'] - current_line[-1]['y']) < max(b['h'], current_line[-1]['h']) * 1.2:
+                    current_line.append(b)
+                else:
+                    current_line.sort(key=lambda x: x['x'])
+                    lines.append(' '.join(x['text'] for x in current_line))
+                    current_line = [b]
+            current_line.sort(key=lambda x: x['x'])
+            lines.append(' '.join(x['text'] for x in current_line))
 
-                # 每行内按 x 排序并合并
-                for row in rows:
-                    row.sort(key=lambda b: b['x'])
-                    text = ' '.join(b['text'] for b in row)
-                    merged_lines.append({
-                        'speaker': speaker,
-                        'text': text,
-                        'y': row[0]['y']
-                    })
+            merged_lines.append({
+                'speaker': speaker,
+                'text': '\n'.join(lines),
+                'y': group[0]['y']
+            })
 
-        # 生成最终文本
+        # ========== 第四步：生成最终文本 ==========
         result_lines = []
         prev_speaker = None
 
         for line in merged_lines:
-            if line['speaker'] == "[时间]":
-                # 时间戳单独一行
+            if line['speaker'] == '[时间]':
                 result_lines.append(f"\n--- {line['text']} ---")
-                prev_speaker = None  # 重置，不与下一条合并
+                prev_speaker = None
             elif line['speaker'] == prev_speaker:
-                # 同一说话人的连续消息，合并（用换行分隔）
                 result_lines[-1] += "\n" + line['text']
             else:
                 result_lines.append(f"{line['speaker']} {line['text']}")
                 prev_speaker = line['speaker']
 
-        result = '\n'.join(result_lines).strip()
-        return result
+        return '\n'.join(result_lines).strip()
 
     except Exception as e:
         import traceback
         print(f"OCR 增强模式失败: {e}")
         traceback.print_exc()
-        # 回退到简单 OCR
         try:
             import pytesseract
-            text = pytesseract.image_to_string(str(image_path), lang="chi_sim+eng")
-            return text.strip()
+            return pytesseract.image_to_string(str(image_path), lang="chi_sim+eng").strip()
         except:
             return f"[OCR 失败: {str(e)}]"
+
+
+def detect_bubble_color(img_array, x, y, w, h):
+    """
+    检测文本块周围的气泡颜色
+    返回: 'green'(用户消息), 'white'(对方消息), 'unknown'
+    """
+    try:
+        h_img, w_img = img_array.shape[:2]
+
+        # 在文本块四周采样（气泡背景）
+        samples = []
+        for dy in [-h//2, h+2, h+8]:
+            for dx in [-5, w//2, w+5]:
+                sy = max(0, min(y + dy, h_img - 1))
+                sx = max(0, min(x + dx, w_img - 1))
+                samples.append(img_array[sy, sx])
+
+        if not samples:
+            return 'unknown'
+
+        samples = np.array(samples)
+        avg_color = np.mean(samples, axis=0)
+        r, g, b = avg_color[:3]
+
+        # 检测绿色气泡（微信默认绿色 #95EC69 或相似）
+        # 绿色特征：G 明显高于 R 和 B
+        if g > r + 20 and g > b + 20 and g > 100:
+            return 'green'
+
+        # 检测白色/浅灰色气泡
+        # 白色特征：RGB 接近
+        max_diff = max(abs(r-g), abs(g-b), abs(r-b))
+        brightness = (r + g + b) / 3
+        if max_diff < 30 and brightness > 180:
+            return 'white'
+
+        return 'unknown'
+    except:
+        return 'unknown'
 
 
 def validate_image(file: UploadFile) -> tuple:
