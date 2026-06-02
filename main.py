@@ -235,18 +235,43 @@ def do_ocr(image_path: Path) -> str:
             return text.strip()
 
         # ========== 区域过滤：去掉顶部和底部非聊天区域 ==========
-        # 微信截图布局：顶部约 12% 是状态栏+标题栏(包含昵称)，底部约 10% 是输入框+导航+其他元素
-        top_cutoff = img_height * 0.12
-        bottom_cutoff = img_height * 0.90
-        filtered_blocks = [
-            b for b in blocks
-            if top_cutoff <= b['y'] <= bottom_cutoff
-        ]
+        # 微信截图布局分层：
+        #   - 状态栏：y < 8%（时间、电量、信号）→ 直接过滤
+        #   - 标题栏：8% ~ 12%（返回按钮、备注昵称）→ 检测备注特征（居中、短文本）
+        #   - 聊天区：12% ~ 90%（消息气泡）→ 保留
+        #   - 底部：> 90%（输入框、导航）→ 过滤
+        status_bar_cutoff = img_height * 0.08    # 状态栏
+        title_bar_cutoff = img_height * 0.12     # 标题栏上限
+        bottom_cutoff = img_height * 0.90        # 底部
 
-        # 如果过滤后没有剩下多少，可能是非微信截图，使用原始块
+        filtered_blocks = []
+        for b in blocks:
+            y = b['y']
+
+            # 过滤状态栏
+            if y < status_bar_cutoff:
+                continue
+
+            # 过滤底部
+            if y > bottom_cutoff:
+                continue
+
+            # 标题栏区域：检测备注特征（居中、短文本）
+            if status_bar_cutoff <= y <= title_bar_cutoff:
+                text = b['text']
+                center = b['center']
+                # 备注特征：居中且短文本（少于 5 个字符）
+                is_centered = abs(center - img_width // 2) < img_width * 0.15
+                is_short = len(text) <= 5
+                if is_centered and is_short:
+                    continue  # 这是备注，过滤掉
+
+            # 其他情况保留
+            filtered_blocks.append(b)
+
+        # 如果过滤后太少，可能是非微信截图，保留原始块
         if len(filtered_blocks) >= 3:
             blocks = filtered_blocks
-        # 否则保留原始块（可能是其他类型图片）
 
         # ========== 第二步：按 y 坐标分组为气泡 ==========
         blocks.sort(key=lambda b: b['y'])
