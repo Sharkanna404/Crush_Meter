@@ -145,19 +145,197 @@ def _resolve_user(auth: str, guest: str) -> tuple:
     return None, guest
 
 
+def is_timestamp(text: str) -> bool:
+    """检测文本是否为时间戳格式（微信聊天截图中的日期/时间）"""
+    import re
+    text = text.strip()
+    patterns = [
+        r'\d{1,2}:\d{2}',                           # 20:32, 8:30
+        r'\d{4}-\d{2}-\d{2}',                        # 2024-01-15
+        r'\d{2}/\d{2}/\d{2,4}',                      # 01/15/24
+        r'\d+\u6708\d+\u65e5',                        # 1月15日
+        r'\d+\u70b9\d+\u5206',                        # 8点30分
+        r'\d{1,2}\s*(?:AM|PM|am|pm)',               # 8:30 AM
+        r'\u6628\u5929|\u4eca\u5929|\u660e\u5929|\u6628\u665a|\u4eca\u665a|\u6628\u65e9|\u4eca\u65e9',
+        r'(?:Yesterday|Today|Tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)',
+        r'[A-Za-z]{3,9}\s+\d{1,2}(?:st|nd|rd|th)?',  # January 15
+    ]
+    for p in patterns:
+        if re.search(p, text):
+            return True
+    time_words = ['yesterday', 'today', 'tomorrow', '昨天', '今天', '明天']
+    if text.lower() in time_words:
+        return True
+    return False
+
+
 def do_ocr(image_path: Path) -> str:
-    """使用 pytesseract 进行 OCR"""
+    """
+    使用 pytesseract 进行 OCR，支持微信聊天截图的左右分栏识别
+    左侧消息标注 [对方]，右侧标注 [自己]，中间时间戳标注 [时间]
+    """
     try:
         from PIL import Image
         import pytesseract
-        # 中文+英文识别
-        text = pytesseract.image_to_string(
+
+        img = Image.open(str(image_path))
+        img_width = img.width
+        img_height = img.height
+        center_x = img_width // 2
+
+        # 使用 image_to_data 获取每个文本块的位置信息
+        data = pytesseract.image_to_data(
             str(image_path),
-            lang="chi_sim+eng"
+            lang="chi_sim+eng",
+            output_type=pytesseract.Output.DICT
         )
-        return text.strip()
+
+        # 收集有效文本块
+        blocks = []
+        n_boxes = len(data['text'])
+        for i in range(n_boxes):
+            text = data['text'][i].strip()
+            conf = int(data['conf'][i])
+            if not text or conf < 25:
+                continue
+
+            x = data['left'][i]
+            y = data['top'][i]
+            w = data['width'][i]
+            h = data['height'][i]
+
+            # 过滤太小的块（可能是噪点）
+            if w < 10 or h < 10:
+                continue
+
+            text_center = x + w // 2
+
+            # 判断位置：左侧=对方，右侧=自己，中间=时间戳
+            # 微信截图特征：对方气泡在左，自己气泡在右
+            margin = img_width * 0.06  # 6% 容差区域
+
+            # 优先检测时间戳格式（时间戳可能在任何位置）
+            if is_timestamp(text):
+                speaker = "[时间]"
+            elif text_center < center_x - margin:
+                speaker = "[对方]"
+            elif text_center > center_x + margin:
+                speaker = "[自己]"
+            else:
+                speaker = "[时间]"
+
+            blocks.append({
+                'text': text,
+                'x': x,
+                'y': y,
+                'w': w,
+                'h': h,
+                'speaker': speaker,
+                'conf': conf
+            })
+
+        if not blocks:
+            # 回退到简单 OCR
+            text = pytesseract.image_to_string(str(image_path), lang="chi_sim+eng")
+            return text.strip()
+
+        # 按 y 坐标排序（从上到下）
+        blocks.sort(key=lambda b: b['y'])
+
+        # 按气泡分组：y 距离近且同一说话人的文本块形成一个气泡
+        bubble_groups = []
+        current_group = [blocks[0]]
+
+        for block in blocks[1:]:
+            last_block = current_group[-1]
+
+            # 判断是否属于同一气泡：
+            # 1. 同一说话人
+            # 2. y 距离不大（同一气泡内或相邻气泡）
+            same_speaker = block['speaker'] == last_block['speaker']
+            y_gap = block['y'] - (last_block['y'] + last_block['h'])
+            y_threshold = max(last_block['h'] * 1.2, 20)
+
+            # 时间戳始终单独成组
+            if last_block['speaker'] == "[时间]" or block['speaker'] == "[时间]":
+                bubble_groups.append(current_group)
+                current_group = [block]
+            elif same_speaker and y_gap < y_threshold:
+                current_group.append(block)
+            else:
+                bubble_groups.append(current_group)
+                current_group = [block]
+
+        bubble_groups.append(current_group)
+
+        # 处理每个气泡组，合并内部文本
+        merged_lines = []
+        for group in bubble_groups:
+            if not group:
+                continue
+
+            speaker = group[0]['speaker']
+
+            if speaker == "[时间]":
+                # 时间戳直接合并
+                text = ' '.join(b['text'] for b in group)
+                merged_lines.append({'speaker': speaker, 'text': text, 'y': group[0]['y']})
+            else:
+                # 消息气泡：按行分组，同一行内按 x 排序
+                # 先按 y 将文本块分行
+                group.sort(key=lambda b: b['y'])
+                rows = []
+                current_row = [group[0]]
+                row_threshold = max(group[0]['h'] * 1.5, 15)
+
+                for b in group[1:]:
+                    if abs(b['y'] - current_row[-1]['y']) < row_threshold:
+                        current_row.append(b)
+                    else:
+                        rows.append(current_row)
+                        current_row = [b]
+                rows.append(current_row)
+
+                # 每行内按 x 排序并合并
+                for row in rows:
+                    row.sort(key=lambda b: b['x'])
+                    text = ' '.join(b['text'] for b in row)
+                    merged_lines.append({
+                        'speaker': speaker,
+                        'text': text,
+                        'y': row[0]['y']
+                    })
+
+        # 生成最终文本
+        result_lines = []
+        prev_speaker = None
+
+        for line in merged_lines:
+            if line['speaker'] == "[时间]":
+                # 时间戳单独一行
+                result_lines.append(f"\n--- {line['text']} ---")
+                prev_speaker = None  # 重置，不与下一条合并
+            elif line['speaker'] == prev_speaker:
+                # 同一说话人的连续消息，合并（用换行分隔）
+                result_lines[-1] += "\n" + line['text']
+            else:
+                result_lines.append(f"{line['speaker']} {line['text']}")
+                prev_speaker = line['speaker']
+
+        result = '\n'.join(result_lines).strip()
+        return result
+
     except Exception as e:
-        return f"[OCR 失败: {str(e)}]"
+        import traceback
+        print(f"OCR 增强模式失败: {e}")
+        traceback.print_exc()
+        # 回退到简单 OCR
+        try:
+            import pytesseract
+            text = pytesseract.image_to_string(str(image_path), lang="chi_sim+eng")
+            return text.strip()
+        except:
+            return f"[OCR 失败: {str(e)}]"
 
 
 def validate_image(file: UploadFile) -> tuple:
