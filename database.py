@@ -183,6 +183,14 @@ def save_analysis(
     return analysis_id
 
 
+def _safe_json_loads(val, default=None):
+    if not val:
+        return default if default is not None else []
+    try:
+        return json.loads(val)
+    except (json.JSONDecodeError, TypeError):
+        return default if default is not None else []
+
 def _row_to_dict(row: sqlite3.Row) -> dict:
     return {
         "id": row["id"],
@@ -190,8 +198,8 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
         "chat_preview": row["chat_preview"],
         "heart_rate": row["heart_rate"],
         "level": row["level"],
-        "dimensions": json.loads(row["dimensions"]),
-        "key_signals": json.loads(row["key_signals"]),
+        "dimensions": _safe_json_loads(row["dimensions"], {}),
+        "key_signals": _safe_json_loads(row["key_signals"], []),
         "advice": row["advice"],
         "risk_warning": row["risk_warning"],
         "created_at": row["created_at"]
@@ -219,26 +227,28 @@ def get_history(user_id: int = None, guest_uid: str = None, limit: int = 20) -> 
     return [_row_to_dict(row) for row in rows]
 
 
-def get_trend(crush_name: str, user_id: int = None, guest_uid: str = None) -> list:
+def get_trend(crush_name: str, user_id: int = None, guest_uid: str = None, limit: int = 5) -> list:
     conn = get_conn()
     conn.row_factory = sqlite3.Row
 
     if user_id:
         rows = conn.execute(
             """SELECT id, heart_rate, level, created_at FROM analyses
-               WHERE crush_name = ? AND user_id = ? ORDER BY created_at ASC""",
-            (crush_name, user_id)
+               WHERE crush_name = ? AND user_id = ? ORDER BY created_at DESC LIMIT ?""",
+            (crush_name, user_id, limit)
         ).fetchall()
     elif guest_uid:
         rows = conn.execute(
             """SELECT id, heart_rate, level, created_at FROM analyses
-               WHERE crush_name = ? AND guest_uid = ? ORDER BY created_at ASC""",
-            (crush_name, guest_uid)
+               WHERE crush_name = ? AND guest_uid = ? ORDER BY created_at DESC LIMIT ?""",
+            (crush_name, guest_uid, limit)
         ).fetchall()
     else:
         rows = []
 
     conn.close()
+    # 倒序返回，让时间轴从左到右递增
+    rows = list(reversed(rows))
     return [
         {"id": row["id"], "heart_rate": row["heart_rate"], "level": row["level"], "created_at": row["created_at"]}
         for row in rows

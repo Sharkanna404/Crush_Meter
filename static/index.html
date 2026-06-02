@@ -410,31 +410,32 @@
             margin: 0 4px;
         }
 
-        /* 趋势图 */
+        /* 迷你趋势图 */
         .trend-section {
-            margin-top: 28px;
-            padding-top: 24px;
+            margin-top: 20px;
+            padding-top: 16px;
             border-top: 2px dashed var(--pink-light);
         }
         .trend-section .section-title {
-            margin-bottom: 16px;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
         }
         .trend-chart-container {
             position: relative;
-            height: 260px;
+            height: 120px;
             background: linear-gradient(135deg, #fff, var(--pink-pale));
-            border-radius: 20px;
-            padding: 12px;
+            border-radius: 16px;
+            padding: 8px 8px 4px;
         }
         .trend-empty {
             text-align: center;
-            padding: 40px;
+            padding: 24px;
             color: var(--text-light);
-            font-size: 0.95rem;
+            font-size: 0.85rem;
         }
         .trend-empty .emoji {
-            font-size: 2rem;
-            margin-bottom: 8px;
+            font-size: 1.5rem;
+            margin-bottom: 4px;
             display: block;
         }
 
@@ -865,6 +866,34 @@
             gap: 12px;
             margin-bottom: 20px;
         }
+        .ecg-crush-select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--pink-light);
+            border-radius: 16px;
+            background: #fff;
+            color: var(--text);
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: inherit;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 16px;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23F38BB6' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 40px;
+        }
+        .ecg-crush-select:focus {
+            border-color: var(--pink);
+            box-shadow: 0 0 0 3px rgba(243, 139, 182, 0.15);
+        }
+        .ecg-crush-select option {
+            font-weight: 500;
+        }
         .ecg-toggle {
             padding: 8px 20px;
             border: 2px solid var(--pink-light);
@@ -1020,13 +1049,13 @@
             </div>
 
             <div class="trend-section" id="trendSection" style="display:none;">
-                <div class="section-title">📈 心动趋势</div>
+                <div class="section-title">📈 近5次心动对比</div>
                 <div class="trend-chart-container" id="trendChartContainer">
                     <canvas id="trendChart"></canvas>
                 </div>
                 <div class="trend-empty" id="trendEmpty" style="display:none;">
                     <span class="emoji">🌱</span>
-                    再分析几次就能看到趋势啦~
+                    再分析几次就能看到对比啦~
                 </div>
             </div>
 
@@ -1054,9 +1083,9 @@
         <!-- Crush心电图 -->
         <div class="card" id="ecgCard" style="display:none;">
             <div class="section-title">💓 Crush 心电图</div>
-            <div class="ecg-crush-selector" id="ecgCrushSelector" style="margin-bottom:16px;">
-                <!-- 动态填充当前查看的 crush -->
-            </div>
+            <select class="ecg-crush-select" id="ecgCrushSelect" onchange="onCrushSelectChange(this.value)">
+                <option value="">选择查看对象...</option>
+            </select>
             <div class="ecg-controls">
                 <button class="ecg-toggle active" onclick="switchEcgGranularity('day')" id="btnDay">按天</button>
                 <button class="ecg-toggle" onclick="switchEcgGranularity('week')" id="btnWeek">按周</button>
@@ -1432,6 +1461,10 @@
                 }
 
                 container.innerHTML = '';
+                // 收集所有唯一的 crush，用于下拉框
+                const uniqueCrushes = [...new Set(data.map(item => item.crush_name))];
+                updateEcgCrushSelect(uniqueCrushes);
+
                 data.forEach(item => {
                     const div = document.createElement('div');
                     div.className = 'history-item';
@@ -1445,6 +1478,7 @@
                     `;
                     div.onclick = () => {
                         currentEcgCrush = item.crush_name;
+                        updateEcgSelectValue(item.crush_name);
                         loadTimeline(item.crush_name);
                         showResult(item);
                     };
@@ -1453,6 +1487,7 @@
                 // 页面加载时，自动显示最近分析的 crush 心电图
                 if (!currentEcgCrush && data.length > 0) {
                     currentEcgCrush = data[0].crush_name;
+                    updateEcgSelectValue(data[0].crush_name);
                     loadTimeline(data[0].crush_name);
                 }
             } catch (err) {
@@ -1475,7 +1510,7 @@
 
                 trendSection.style.display = 'block';
 
-                if (!data || data.length < 2) {
+                if (!data || data.length === 0) {
                     chartContainer.style.display = 'none';
                     emptyState.style.display = 'block';
                     return;
@@ -1497,34 +1532,32 @@
                 trendChartInstance.destroy();
             }
 
-            const labels = data.map(d => {
+            const labels = data.map((d, i) => {
                 const date = new Date(d.created_at);
                 return `${date.getMonth() + 1}/${date.getDate()}`;
             });
             const scores = data.map(d => d.heart_rate);
 
-            // 创建渐变填充
-            const gradient = ctx.createLinearGradient(0, 0, 0, 260);
-            gradient.addColorStop(0, 'rgba(243, 139, 182, 0.3)');
-            gradient.addColorStop(1, 'rgba(243, 139, 182, 0.0)');
+            // 根据分数设置柱子颜色
+            const barColors = scores.map(score => {
+                if (score >= 80) return '#F38BB6';
+                if (score >= 60) return '#FDC5DA';
+                if (score >= 40) return '#B8D982';
+                return '#EDE9E0';
+            });
 
             trendChartInstance = new Chart(ctx, {
-                type: 'line',
+                type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
                         label: '心动指数',
                         data: scores,
-                        borderColor: '#F38BB6',
-                        backgroundColor: gradient,
-                        borderWidth: 3,
-                        pointBackgroundColor: '#7DAE3E',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 6,
-                        pointHoverRadius: 8,
-                        fill: true,
-                        tension: 0.4
+                        backgroundColor: barColors,
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        barPercentage: 0.6,
+                        categoryPercentage: 0.8
                     }]
                 },
                 options: {
@@ -1538,13 +1571,15 @@
                             bodyColor: '#fff',
                             borderColor: '#7DAE3E',
                             borderWidth: 1,
-                            cornerRadius: 12,
+                            cornerRadius: 8,
                             displayColors: false,
                             callbacks: {
+                                title: function(context) {
+                                    const idx = context[0].dataIndex;
+                                    return data[idx].level;
+                                },
                                 label: function(context) {
-                                    const idx = context.dataIndex;
-                                    const level = data[idx].level;
-                                    return `心动指数: ${context.parsed.y}  (${level})`;
+                                    return `心动指数: ${context.parsed.y}`;
                                 }
                             }
                         }
@@ -1554,25 +1589,22 @@
                             min: 0,
                             max: 100,
                             grid: {
-                                color: 'rgba(0,0,0,0.05)',
-                                borderDash: [5, 5]
+                                color: 'rgba(0,0,0,0.03)',
+                                drawBorder: false
                             },
                             ticks: {
-                                color: '#999',
-                                font: { size: 11 }
+                                color: '#bbb',
+                                font: { size: 9 },
+                                maxTicksLimit: 4
                             }
                         },
                         x: {
-                            grid: { display: false },
+                            grid: { display: false, drawBorder: false },
                             ticks: {
                                 color: '#999',
-                                font: { size: 11 }
+                                font: { size: 9 }
                             }
                         }
-                    },
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
                     }
                 }
             });
@@ -1839,6 +1871,33 @@
         let currentEcgGranularity = 'day';
         let currentEcgCrush = '';
 
+        function updateEcgCrushSelect(crushes) {
+            const select = document.getElementById('ecgCrushSelect');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">选择查看对象...</option>';
+            crushes.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+            // 保持当前选中值（如果存在于列表中）
+            if (currentVal && crushes.includes(currentVal)) {
+                select.value = currentVal;
+            }
+        }
+
+        function updateEcgSelectValue(name) {
+            const select = document.getElementById('ecgCrushSelect');
+            select.value = name;
+        }
+
+        function onCrushSelectChange(name) {
+            if (!name) return;
+            currentEcgCrush = name;
+            loadTimeline(name);
+        }
+
         function switchEcgGranularity(mode) {
             currentEcgGranularity = mode;
             document.querySelectorAll('.ecg-toggle').forEach(b => b.classList.remove('active'));
@@ -1874,10 +1933,8 @@
                 const emptyState = document.getElementById('ecgEmptyState');
                 const chartContainer = document.getElementById('ecgChartContainer');
                 const stats = document.getElementById('ecgStats');
-                const crushSelector = document.getElementById('ecgCrushSelector');
 
                 card.style.display = 'block';
-                crushSelector.innerHTML = `<span style="color:var(--pink);font-weight:700;">💘 ${crushName}</span> <span style="color:var(--text-light);font-size:0.85rem;">的心动趋势</span>`;
 
                 if (!data.data || data.data.length < 2) {
                     emptyState.style.display = 'block';
