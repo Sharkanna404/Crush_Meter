@@ -299,6 +299,87 @@
             transition: width 1s ease-out;
         }
 
+        /* 雷达图布局 */
+        .dimensions-radar {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 28px;
+            background: linear-gradient(135deg, #fff, var(--cream));
+            border-radius: 20px;
+            padding: 20px;
+            border: 2px solid var(--cream-dark);
+        }
+        .radar-chart-wrap {
+            flex: 0 0 220px;
+            height: 220px;
+            position: relative;
+        }
+        .radar-details {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+        }
+        .radar-details .dim-item {
+            background: #fff;
+            border-radius: 14px;
+            padding: 12px 10px;
+            text-align: center;
+            border: 2px solid var(--cream-dark);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .radar-details .dim-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(243, 139, 182, 0.12);
+            border-color: var(--pink-light);
+        }
+        .radar-details .dim-item .dim-name {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+        .radar-details .dim-item .dim-score {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--green-dark);
+            line-height: 1.2;
+        }
+        .radar-details .dim-item .dim-bar {
+            height: 6px;
+            background: var(--cream-dark);
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .radar-details .dim-item .dim-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--pink), var(--green));
+            transition: width 1s ease-out;
+        }
+        @media (max-width: 640px) {
+            .dimensions-radar {
+                flex-direction: column;
+                padding: 16px;
+            }
+            .radar-chart-wrap {
+                flex: none;
+                width: 200px;
+                height: 200px;
+            }
+            .radar-details {
+                width: 100%;
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        @media (max-width: 400px) {
+            .radar-details {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
         .section-title {
             font-size: 1.15rem;
             color: var(--green-dark);
@@ -443,7 +524,7 @@
         }
         .trend-chart-container {
             position: relative;
-            height: 160px;
+            height: 280px;
             background: linear-gradient(135deg, #fff, var(--pink-pale));
             border-radius: 16px;
             padding: 8px 8px 4px;
@@ -1070,7 +1151,12 @@
             </div>
 
             <div class="section-title">📊 五维度分析</div>
-            <div class="dimensions" id="dimensions"></div>
+            <div class="dimensions-radar" id="dimensionsRadar">
+                <div class="radar-chart-wrap">
+                    <canvas id="radarChart"></canvas>
+                </div>
+                <div class="radar-details" id="radarDetails"></div>
+            </div>
 
             <div class="section-title">💡 关键信号</div>
             <div class="signals" id="signals"></div>
@@ -1414,7 +1500,6 @@
             document.getElementById('level').textContent = data.level;
 
             // 五维度
-            const dimContainer = document.getElementById('dimensions');
             const dimMap = {
                 initiative: '主动性',
                 response_quality: '回应质量',
@@ -1422,18 +1507,31 @@
                 time_signals: '时间信号',
                 exclusivity: '专属感'
             };
-            dimContainer.innerHTML = '';
-            for (const [key, label] of Object.entries(dimMap)) {
-                const d = data.dimensions[key] || { score: 0, evidence: '' };
+            const dimKeys = Object.keys(dimMap);
+            const dimLabels = dimKeys.map(k => dimMap[k]);
+            const dimScores = dimKeys.map(k => (data.dimensions[k] || { score: 0 }).score);
+            const dimEvidences = dimKeys.map(k => (data.dimensions[k] || { evidence: '' }).evidence);
+
+            // 渲染雷达图
+            renderRadarChart(dimLabels, dimScores);
+
+            // 渲染详情列表
+            const radarDetails = document.getElementById('radarDetails');
+            radarDetails.innerHTML = '';
+            for (let i = 0; i < dimKeys.length; i++) {
+                const key = dimKeys[i];
+                const label = dimLabels[i];
+                const score = dimScores[i];
+                const evidence = dimEvidences[i];
                 const div = document.createElement('div');
                 div.className = 'dim-item';
-                div.title = d.evidence;
+                div.title = evidence;
                 div.innerHTML = `
                     <div class="dim-name">${label}</div>
-                    <div class="dim-score">${d.score}</div>
-                    <div class="dim-bar"><div class="dim-bar-fill" style="width:${d.score}%"></div></div>
+                    <div class="dim-score">${score}</div>
+                    <div class="dim-bar"><div class="dim-bar-fill" style="width:${score}%"></div></div>
                 `;
-                dimContainer.appendChild(div);
+                radarDetails.appendChild(div);
             }
 
             // 关键信号
@@ -1557,6 +1655,59 @@
                 chartContainer.style.display = 'none';
                 emptyState.style.display = 'block';
             }
+        }
+
+        let radarChartInstance = null;
+
+        function renderRadarChart(labels, scores) {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+
+            if (radarChartInstance) {
+                radarChartInstance.destroy();
+            }
+
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '心动指数',
+                        data: scores,
+                        borderColor: '#F38BB6',
+                        backgroundColor: 'rgba(243, 139, 182, 0.25)',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#7DAE3E',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        r: {
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                                display: false,
+                                stepSize: 20
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.06)'
+                            },
+                            pointLabels: {
+                                color: '#666',
+                                font: { size: 11, weight: '600' }
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         function renderTrend(data) {
