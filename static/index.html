@@ -1044,46 +1044,44 @@
             </div>
 
 
-            <!-- Crush心电图 -->
-            <div class="ecg-section" id="ecgSection" style="display:none;">
-                <div class="ecg-entrance" onclick="toggleEcg()">
-                    <span class="heart-pulse">💓</span>
-                    <h3>Crush 心电图</h3>
-                    <p>查看你们的关系变化趋势</p>
-                </div>
-                <div class="ecg-chart-area" id="ecgChartArea">
-                    <div class="ecg-controls">
-                        <button class="ecg-toggle active" onclick="switchEcgGranularity('day', this)" id="btnDay">按天</button>
-                        <button class="ecg-toggle" onclick="switchEcgGranularity('week', this)" id="btnWeek">按周</button>
-                    </div>
-                    <div id="ecgEmptyState" class="ecg-empty" style="display:none;">
-                        <span class="emoji">💓</span>
-                        <h4>暂无数据</h4>
-                        <p>多分析几次就能看到心跳曲线啦~<br>每天分析一次，就能追踪关系变化趋势！</p>
-                    </div>
-                    <div id="ecgChartContainer" class="ecg-chart-container" style="display:none;">
-                        <canvas id="ecgCanvas"></canvas>
-                    </div>
-                    <div class="ecg-stats" id="ecgStats" style="display:none;">
-                        <div class="ecg-stat">
-                            <div class="number" id="ecgAvg">--</div>
-                            <div class="label">平均心动指数</div>
-                        </div>
-                        <div class="ecg-stat">
-                            <div class="number" id="ecgDays">--</div>
-                            <div class="label">统计天数</div>
-                        </div>
-                        <div class="ecg-stat">
-                            <div class="number" id="ecgMax">--</div>
-                            <div class="label">最高心动指数</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
             <!-- 注册提示（未登录时显示） -->
             <div class="register-hint" id="registerHint" style="display:none;">
                 <p>🌸 注册账号，永久保存你的心动档案</p>
                 <button class="hint-btn" onclick="showRegisterModal()">❤️ 保存心动档案</button>
+            </div>
+        </div>
+
+        <!-- Crush心电图 -->
+        <div class="card" id="ecgCard" style="display:none;">
+            <div class="section-title">💓 Crush 心电图</div>
+            <div class="ecg-crush-selector" id="ecgCrushSelector" style="margin-bottom:16px;">
+                <!-- 动态填充当前查看的 crush -->
+            </div>
+            <div class="ecg-controls">
+                <button class="ecg-toggle active" onclick="switchEcgGranularity('day')" id="btnDay">按天</button>
+                <button class="ecg-toggle" onclick="switchEcgGranularity('week')" id="btnWeek">按周</button>
+            </div>
+            <div id="ecgEmptyState" class="ecg-empty" style="display:none;">
+                <span class="emoji">💓</span>
+                <h4>暂无数据</h4>
+                <p>多分析几次就能看到心跳曲线啦~<br>每天分析一次，就能追踪关系变化趋势！</p>
+            </div>
+            <div id="ecgChartContainer" class="ecg-chart-container" style="display:none;">
+                <canvas id="ecgCanvas"></canvas>
+            </div>
+            <div class="ecg-stats" id="ecgStats" style="display:none;">
+                <div class="ecg-stat">
+                    <div class="number" id="ecgAvg">--</div>
+                    <div class="label">平均心动指数</div>
+                </div>
+                <div class="ecg-stat">
+                    <div class="number" id="ecgDays">--</div>
+                    <div class="label">统计天数</div>
+                </div>
+                <div class="ecg-stat">
+                    <div class="number" id="ecgMax">--</div>
+                    <div class="label">最高心动指数</div>
+                </div>
             </div>
         </div>
 
@@ -1410,8 +1408,9 @@
             document.getElementById('resultArea').classList.add('show');
             // 加载趋势
             loadTrend(data.crush_name);
-            // 显示心电图入口
-            document.getElementById('ecgSection').style.display = 'block';
+            // 更新心电图
+            currentEcgCrush = data.crush_name;
+            loadTimeline(data.crush_name);
             // 未登录时显示注册提示
             const token = localStorage.getItem('heart_token');
             document.getElementById('registerHint').style.display = token ? 'none' : 'block';
@@ -1444,9 +1443,18 @@
                         </div>
                         <div class="h-score">${item.heart_rate}</div>
                     `;
-                    div.onclick = () => showResult(item);
+                    div.onclick = () => {
+                        currentEcgCrush = item.crush_name;
+                        loadTimeline(item.crush_name);
+                        showResult(item);
+                    };
                     container.appendChild(div);
                 });
+                // 页面加载时，自动显示最近分析的 crush 心电图
+                if (!currentEcgCrush && data.length > 0) {
+                    currentEcgCrush = data[0].crush_name;
+                    loadTimeline(data[0].crush_name);
+                }
             } catch (err) {
                 console.error('loadHistory error', err);
             }
@@ -1829,25 +1837,26 @@
         // ===== Crush心电图 =====
         let ecgChart = null;
         let currentEcgGranularity = 'day';
+        let currentEcgCrush = '';
 
-        function toggleEcg() {
-            const area = document.getElementById('ecgChartArea');
-            const isShow = area.classList.toggle('show');
-            if (isShow) {
-                loadTimeline();
+        function switchEcgGranularity(mode) {
+            currentEcgGranularity = mode;
+            document.querySelectorAll('.ecg-toggle').forEach(b => b.classList.remove('active'));
+            document.getElementById(mode === 'day' ? 'btnDay' : 'btnWeek').classList.add('active');
+            if (currentEcgCrush) {
+                loadTimeline(currentEcgCrush);
             }
         }
 
-        function switchEcgGranularity(mode, btn) {
-            currentEcgGranularity = mode;
-            document.querySelectorAll('.ecg-toggle').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            loadTimeline();
-        }
-
-        async function loadTimeline() {
-            const crushName = document.getElementById('crushName').value.trim();
-            if (!crushName) return;
+        async function loadTimeline(crushName) {
+            if (!crushName) {
+                crushName = currentEcgCrush;
+            }
+            if (!crushName) {
+                document.getElementById('ecgCard').style.display = 'none';
+                return;
+            }
+            currentEcgCrush = crushName;
 
             const headers = getAuthHeaders();
             const url = `/timeline?crush_name=${encodeURIComponent(crushName)}&granularity=${currentEcgGranularity}`;
@@ -1861,9 +1870,14 @@
                     return;
                 }
 
+                const card = document.getElementById('ecgCard');
                 const emptyState = document.getElementById('ecgEmptyState');
                 const chartContainer = document.getElementById('ecgChartContainer');
                 const stats = document.getElementById('ecgStats');
+                const crushSelector = document.getElementById('ecgCrushSelector');
+
+                card.style.display = 'block';
+                crushSelector.innerHTML = `<span style="color:var(--pink);font-weight:700;">💘 ${crushName}</span> <span style="color:var(--text-light);font-size:0.85rem;">的心动趋势</span>`;
 
                 if (!data.data || data.data.length < 2) {
                     emptyState.style.display = 'block';
