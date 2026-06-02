@@ -129,6 +129,27 @@
             background: var(--green);
         }
 
+        /* 并排卡片 */
+        .cards-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        .card-half {
+            flex: 1;
+            min-width: 0;
+            margin-bottom: 0;
+        }
+        @media (max-width: 640px) {
+            .cards-row {
+                flex-direction: column;
+                gap: 16px;
+            }
+            .card-half {
+                margin-bottom: 0;
+            }
+        }
+
         .input-group {
             margin-bottom: 20px;
         }
@@ -1048,17 +1069,6 @@
                 <div class="level" id="level">--</div>
             </div>
 
-            <div class="trend-section" id="trendSection" style="display:none;">
-                <div class="section-title">📈 近5次心动对比</div>
-                <div class="trend-chart-container" id="trendChartContainer">
-                    <canvas id="trendChart"></canvas>
-                </div>
-                <div class="trend-empty" id="trendEmpty" style="display:none;">
-                    <span class="emoji">🌱</span>
-                    再分析几次就能看到对比啦~
-                </div>
-            </div>
-
             <div class="section-title">📊 五维度分析</div>
             <div class="dimensions" id="dimensions"></div>
 
@@ -1071,7 +1081,6 @@
             <div id="riskArea" style="display:none;">
                 <div class="risk-box" id="riskWarning"></div>
             </div>
-
 
             <!-- 注册提示（未登录时显示） -->
             <div class="register-hint" id="registerHint" style="display:none;">
@@ -1114,11 +1123,26 @@
             </div>
         </div>
 
-        <!-- 历史记录 -->
-        <div class="card">
-            <div class="section-title">📜 分析历史</div>
-            <div class="history-list" id="historyList">
-                <div class="empty-state">暂无记录，快来解码第一个 crush 吧~ 🌸</div>
+        <!-- 分析历史 + 迷你柱状图 并排 -->
+        <div class="cards-row">
+            <div class="card card-half">
+                <div class="section-title">📜 分析历史</div>
+                <div class="history-list" id="historyList">
+                    <div class="empty-state">暂无记录，快来解码第一个 crush 吧~ 🌸</div>
+                </div>
+            </div>
+            <div class="card card-half">
+                <div class="section-title">📈 近5次心动对比</div>
+                <select class="ecg-crush-select" id="trendCrushSelect" onchange="onTrendCrushChange(this.value)">
+                    <option value="">选择查看对象...</option>
+                </select>
+                <div class="trend-chart-container" id="trendChartContainer" style="display:none;">
+                    <canvas id="trendChart"></canvas>
+                </div>
+                <div class="trend-empty" id="trendEmpty" style="display:none;">
+                    <span class="emoji">🌱</span>
+                    再分析几次就能看到对比啦~
+                </div>
             </div>
         </div>
     </div>
@@ -1435,7 +1459,9 @@
             }
 
             document.getElementById('resultArea').classList.add('show');
-            // 加载趋势
+            // 更新迷你柱状图
+            currentTrendCrush = data.crush_name;
+            updateTrendSelectValue(data.crush_name);
             loadTrend(data.crush_name);
             // 更新心电图
             currentEcgCrush = data.crush_name;
@@ -1464,6 +1490,7 @@
                 // 收集所有唯一的 crush，用于下拉框
                 const uniqueCrushes = [...new Set(data.map(item => item.crush_name))];
                 updateEcgCrushSelect(uniqueCrushes);
+                updateTrendCrushSelect(uniqueCrushes);
 
                 data.forEach(item => {
                     const div = document.createElement('div');
@@ -1478,17 +1505,25 @@
                     `;
                     div.onclick = () => {
                         currentEcgCrush = item.crush_name;
+                        currentTrendCrush = item.crush_name;
                         updateEcgSelectValue(item.crush_name);
+                        updateTrendSelectValue(item.crush_name);
                         loadTimeline(item.crush_name);
+                        loadTrend(item.crush_name);
                         showResult(item);
                     };
                     container.appendChild(div);
                 });
-                // 页面加载时，自动显示最近分析的 crush 心电图
+                // 页面加载时，自动显示最近分析的 crush
                 if (!currentEcgCrush && data.length > 0) {
                     currentEcgCrush = data[0].crush_name;
                     updateEcgSelectValue(data[0].crush_name);
                     loadTimeline(data[0].crush_name);
+                }
+                if (!currentTrendCrush && data.length > 0) {
+                    currentTrendCrush = data[0].crush_name;
+                    updateTrendSelectValue(data[0].crush_name);
+                    loadTrend(data[0].crush_name);
                 }
             } catch (err) {
                 console.error('loadHistory error', err);
@@ -1496,9 +1531,9 @@
         }
 
         let trendChartInstance = null;
+        let currentTrendCrush = '';
 
         async function loadTrend(crushName) {
-            const trendSection = document.getElementById('trendSection');
             const chartContainer = document.getElementById('trendChartContainer');
             const emptyState = document.getElementById('trendEmpty');
 
@@ -1507,8 +1542,6 @@
                     headers: getAuthHeaders()
                 });
                 const data = await res.json();
-
-                trendSection.style.display = 'block';
 
                 if (!data || data.length === 0) {
                     chartContainer.style.display = 'none';
@@ -1521,7 +1554,8 @@
                 renderTrend(data);
             } catch (err) {
                 console.error('loadTrend error', err);
-                trendSection.style.display = 'none';
+                chartContainer.style.display = 'none';
+                emptyState.style.display = 'block';
             }
         }
 
@@ -1556,8 +1590,8 @@
                         backgroundColor: barColors,
                         borderRadius: 6,
                         borderSkipped: false,
-                        barPercentage: 0.6,
-                        categoryPercentage: 0.8
+                        barPercentage: 0.35,
+                        categoryPercentage: 0.9
                     }]
                 },
                 options: {
@@ -1608,6 +1642,32 @@
                     }
                 }
             });
+        }
+
+        function onTrendCrushChange(name) {
+            if (!name) return;
+            currentTrendCrush = name;
+            loadTrend(name);
+        }
+
+        function updateTrendCrushSelect(crushes) {
+            const select = document.getElementById('trendCrushSelect');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">选择查看对象...</option>';
+            crushes.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+            if (currentVal && crushes.includes(currentVal)) {
+                select.value = currentVal;
+            }
+        }
+
+        function updateTrendSelectValue(name) {
+            const select = document.getElementById('trendCrushSelect');
+            select.value = name;
         }
 
         // ===== 图片 OCR 相关 =====
