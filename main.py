@@ -234,6 +234,20 @@ def do_ocr(image_path: Path) -> str:
             text = pytesseract.image_to_string(str(image_path), lang="chi_sim+eng")
             return text.strip()
 
+        # ========== 区域过滤：去掉顶部和底部非聊天区域 ==========
+        # 微信截图布局：顶部约 12% 是状态栏+标题栏(包含昵称)，底部约 10% 是输入框+导航+其他元素
+        top_cutoff = img_height * 0.12
+        bottom_cutoff = img_height * 0.90
+        filtered_blocks = [
+            b for b in blocks
+            if top_cutoff <= b['y'] <= bottom_cutoff
+        ]
+
+        # 如果过滤后没有剩下多少，可能是非微信截图，使用原始块
+        if len(filtered_blocks) >= 3:
+            blocks = filtered_blocks
+        # 否则保留原始块（可能是其他类型图片）
+
         # ========== 第二步：按 y 坐标分组为气泡 ==========
         blocks.sort(key=lambda b: b['y'])
 
