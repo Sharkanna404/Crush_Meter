@@ -829,6 +829,45 @@ async def analyze(
 
 
 
+@app.get("/history")
+async def history(
+    limit: int = 20,
+    authorization: str = Header(None),
+    x_guest_uid: str = Header(None)
+):
+    """获取当前用户的分析历史记录"""
+    user = get_current_user(authorization)
+    user_id = user["id"] if user else None
+    guest_uid = x_guest_uid if not user else None
+
+    if not user_id and not guest_uid:
+        return JSONResponse({"error": "未登录"}, status_code=401)
+
+    records = get_history(user_id=user_id, guest_uid=guest_uid, limit=limit)
+    return records
+
+
+@app.get("/trend")
+async def trend(
+    crush_name: str,
+    authorization: str = Header(None),
+    x_guest_uid: str = Header(None)
+):
+    """获取某个 crush 的心动指数趋势（所有历史记录）"""
+    user = get_current_user(authorization)
+    user_id = user["id"] if user else None
+    guest_uid = x_guest_uid if not user else None
+
+    if not crush_name:
+        return JSONResponse({"error": "请提供 crush 名称"}, status_code=400)
+
+    if not user_id and not guest_uid:
+        return JSONResponse({"error": "未登录"}, status_code=401)
+
+    records = get_trend(crush_name, user_id=user_id, guest_uid=guest_uid)
+    return records
+
+
 @app.get("/timeline")
 async def timeline(
     crush_name: str,
