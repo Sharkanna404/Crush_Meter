@@ -1,4 +1,11 @@
-<style>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心动解码器 | Crush Meter</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
         @import url('https://fonts.googleapis.com/css2?family=Rubik+Mono+One&family=Noto+Sans+SC:wght@400;700;900&display=swap');
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1157,11 +1164,1122 @@
             .heart-score .number { font-size: 3.5rem; }
             .dimensions { grid-template-columns: repeat(2, 1fr); }
         }
-    </style    <!-- ticker -->
+    </style>
+</head>
+<body>
+    <!-- ticker -->
     <div class="ticker">
         <div class="ticker-inner">
             HEART RATE ⚡ CRUSH INDEX ⚡ CHAT FREQ ⚡ REPLY SPEED ⚡ SHARE DESIRE ⚡ EMOTION WAVE ⚡ HEART RATE ⚡ CRUSH INDEX ⚡ CHAT FREQ ⚡ REPLY SPEED ⚡ SHARE DESIRE ⚡ EMOTION WAVE
         </div>
     </div>
+    <!-- 用户状态栏 -->
+    <div class="user-bar" id="userBar">
+        <button class="user-btn btn-login" onclick="showLoginModal()">❤️ 登录 / 注册</button>
+    </div>
 
->
+    <div class="top-bar"></div>
+
+    <header>
+        <h1><span>❤</span> 心动解码器</h1>
+        <p>Crush Meter · 上传聊天记录，AI 解读 ta 的心动程度</p>
+    </header>
+
+    <div class="wave-divider"></div>
+
+    <div class="pink-section">
+        <div class="container">
+            <!-- 输入区域 -->
+            <div class="card">
+                <div class="input-group">
+                    <label>ta 的名字</label>
+                    <input type="text" id="crushName" placeholder="例如：小美" value="">
+                </div>
+                <div class="input-group">
+                    <label>聊天记录（直接粘贴即可）</label>
+                    <textarea id="chatText" placeholder="例如：
+你：在干什么
+小美：刚下班，累死了哈哈哈
+你：辛苦了，吃了吗
+小美：还没呢，不知道吃什么，你推荐一下？
+..."></textarea>
+                </div>
+
+                <!-- 图片上传 -->
+                <div class="input-group">
+                    <label>📸 上传聊天截图（支持 OCR）</label>
+                    <div class="upload-count">
+                        已上传 <span class="count-num" id="uploadCount">0</span> / 10 张
+                    </div>
+                    <div class="upload-area" id="uploadArea" onclick="document.getElementById('imageInput').click()"
+                         ondragover="event.preventDefault(); this.classList.add('dragover')"
+                         ondragleave="this.classList.remove('dragover')"
+                         ondrop="handleDrop(event)">
+                        <span class="upload-icon">📷</span>
+                        <div class="upload-text">点击或拖拽上传图片</div>
+                        <div class="upload-hint">支持 JPG / PNG / WEBP ，单张不超过 5MB</div>
+                        <div class="upload-hint" style="color: #E91E63; font-size: 12px; margin-top: 4px;">
+                            ✨ 微信聊天截图自动识别：左侧消息标注 [对方]，右侧标注 [自己]
+                        </div>
+                    </div>
+                    <input type="file" id="imageInput" accept="image/jpeg,image/png,image/webp" multiple onchange="handleImageSelect(event)">
+
+                    <div class="image-grid" id="imageGrid"></div>
+
+                    <!-- OCR 编辑区 -->
+                    <div class="ocr-edit-section" id="ocrEditSection" style="display:none;">
+                        <div class="section-title">📝 编辑 OCR 结果</div>
+                        <textarea class="ocr-textarea" id="ocrEditTextarea" placeholder="OCR 识别的文字会显示在这里，可以手动修正..."></textarea>
+                        <div class="ocr-actions">
+                            <button class="btn-small btn-save" onclick="saveOcrEdit()">保存修改</button>
+                            <button class="btn-small btn-cancel" onclick="cancelOcrEdit()">取消</button>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn" id="analyzeBtn" onclick="analyze()">🔮 开始解码</button>
+                <div id="loadingArea"></div>
+                <div id="errorArea"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="wave-divider reverse"></div>
+
+    <div class="container">
+        <!-- 结果区域 -->
+        <div class="card pink-card result" id="resultArea">
+            <div class="heart-score">
+                <div class="number" id="heartRate">--</div>
+                <div class="level" id="level">--</div>
+            </div>
+
+            <div class="section-title">📊 五维度分析</div>
+            <div class="dimensions" id="dimensions"></div>
+
+            <div class="section-title">💡 关键信号</div>
+            <div class="signals" id="signals"></div>
+
+            <div class="section-title">🌱 行动建议</div>
+            <div class="advice-box" id="advice"></div>
+
+            <div id="riskArea" style="display:none;">
+                <div class="risk-box" id="riskWarning"></div>
+            </div>
+
+            <!-- 注册提示（未登录时显示） -->
+            <div class="register-hint" id="registerHint" style="display:none;">
+                <p>🌸 注册账号，永久保存你的心动档案</p>
+                <button class="hint-btn" onclick="showRegisterModal()">❤️ 保存心动档案</button>
+            </div>
+        </div>
+
+        <!-- Crush心电图 -->
+        <div class="card" id="ecgCard" style="display:none;">
+            <div class="section-title">💓 Crush 心电图</div>
+            <select class="ecg-crush-select" id="ecgCrushSelect" onchange="onCrushSelectChange(this.value)">
+                <option value="">选择查看对象...</option>
+            </select>
+            <div class="ecg-controls">
+                <button class="ecg-toggle active" onclick="switchEcgGranularity('day')" id="btnDay">按天</button>
+                <button class="ecg-toggle" onclick="switchEcgGranularity('week')" id="btnWeek">按周</button>
+            </div>
+            <div id="ecgEmptyState" class="ecg-empty" style="display:none;">
+                <span class="emoji">💓</span>
+                <h4>暂无数据</h4>
+                <p>多分析几次就能看到心跳曲线啦~<br>每天分析一次，就能追踪关系变化趋势！</p>
+            </div>
+            <div id="ecgChartContainer" class="ecg-chart-container" style="display:none;">
+                <canvas id="ecgCanvas"></canvas>
+            </div>
+            <div class="ecg-stats" id="ecgStats" style="display:none;">
+                <div class="ecg-stat">
+                    <div class="number" id="ecgAvg">--</div>
+                    <div class="label">平均心动指数</div>
+                </div>
+                <div class="ecg-stat">
+                    <div class="number" id="ecgDays">--</div>
+                    <div class="label">统计天数</div>
+                </div>
+                <div class="ecg-stat">
+                    <div class="number" id="ecgMax">--</div>
+                    <div class="label">最高心动指数</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分析历史 + 迷你柱状图 并排 -->
+        <div class="cards-row">
+            <div class="card card-half">
+                <div class="section-title">📜 分析历史</div>
+                <div class="history-list" id="historyList">
+                    <div class="empty-state">暂无记录，快来解码第一个 crush 吧~ 🌸</div>
+                </div>
+            </div>
+            <div class="card card-half">
+                <div class="section-title">📈 近5次心动对比</div>
+                <select class="ecg-crush-select" id="trendCrushSelect" onchange="onTrendCrushChange(this.value)">
+                    <option value="">选择查看对象...</option>
+                </select>
+                <div class="trend-chart-container" id="trendChartContainer" style="display:none;">
+                    <canvas id="trendChart"></canvas>
+                </div>
+                <div class="trend-empty" id="trendEmpty" style="display:none;">
+                    <span class="emoji">🌱</span>
+                    再分析几次就能看到对比啦~
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <span class="leaf">🌿</span> 心动解码器 Crush Meter <span class="leaf">🌸</span>
+    </footer>
+
+    <!-- 登录/注册弹窗 -->
+    <div class="modal-overlay" id="authModal">
+        <div class="modal">
+            <button class="modal-close" onclick="closeAuthModal()">&times;</button>
+            <div class="modal-header">
+                <h3 id="modalTitle">欢迎回来~</h3>
+                <p id="modalSubtitle">登录你的心动档案</p>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="modal-input" id="authUsername" placeholder="用户名" maxlength="20">
+                <input type="password" class="modal-input" id="authPassword" placeholder="密码">
+                <input type="password" class="modal-input" id="authPassword2" placeholder="确认密码" style="display:none;">
+                <button class="modal-btn modal-btn-primary" id="authBtn" onclick="handleAuth()">🔑 登录</button>
+                <div class="modal-footer">
+                    <span id="modalFooterText">还没有账号？</span>
+                    <a onclick="toggleAuthMode()" id="modalToggle">注册一个</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== 认证状态 =====
+        let authMode = 'login'; // 'login' or 'register'
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem('heart_token');
+            if (token) {
+                return { 'Authorization': 'Bearer ' + token };
+            }
+            let guestUid = localStorage.getItem('heart_guest_uid');
+            if (!guestUid) {
+                guestUid = 'guest_' + Math.random().toString(36).substring(2, 15);
+                localStorage.setItem('heart_guest_uid', guestUid);
+            }
+            return { 'X-Guest-UID': guestUid };
+        }
+
+        async function initAuth() {
+            const token = localStorage.getItem('heart_token');
+            if (token) {
+                try {
+                    const res = await fetch('/me', { headers: { 'Authorization': 'Bearer ' + token } });
+                    const data = await res.json();
+                    if (data.user) {
+                        updateUserBar(data.user.username);
+                        return;
+                    }
+                } catch (e) {
+                    console.error('initAuth error', e);
+                }
+                localStorage.removeItem('heart_token');
+            }
+            updateUserBar(null);
+        }
+
+        function updateUserBar(username) {
+            const bar = document.getElementById('userBar');
+            if (username) {
+                bar.innerHTML = `
+                    <span class="user-name">👤 ${username} 的心动档案</span>
+                    <button class="user-btn btn-logout" onclick="logout()">退出</button>
+                `;
+            } else {
+                bar.innerHTML = `
+                    <button class="user-btn btn-login" onclick="showLoginModal()">❤️ 登录 / 注册</button>
+                `;
+            }
+        }
+
+        function showLoginModal() {
+            authMode = 'login';
+            document.getElementById('authModal').classList.add('show');
+            document.getElementById('modalTitle').textContent = '欢迎回来~';
+            document.getElementById('modalSubtitle').textContent = '登录你的心动档案';
+            document.getElementById('authBtn').textContent = '🔑 登录';
+            document.getElementById('authPassword2').style.display = 'none';
+            document.getElementById('modalFooterText').textContent = '还没有账号？';
+            document.getElementById('modalToggle').textContent = '注册一个';
+        }
+
+        function showRegisterModal() {
+            authMode = 'register';
+            document.getElementById('authModal').classList.add('show');
+            document.getElementById('modalTitle').textContent = '保存心动档案~';
+            document.getElementById('modalSubtitle').textContent = '取个名字，让心动有迹可寻';
+            document.getElementById('authBtn').textContent = '💕 创建心动档案';
+            document.getElementById('authPassword2').style.display = 'block';
+            document.getElementById('modalFooterText').textContent = '已有账号？';
+            document.getElementById('modalToggle').textContent = '直接登录';
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.remove('show');
+            document.getElementById('authUsername').value = '';
+            document.getElementById('authPassword').value = '';
+            document.getElementById('authPassword2').value = '';
+        }
+
+        function toggleAuthMode() {
+            if (authMode === 'login') {
+                showRegisterModal();
+            } else {
+                showLoginModal();
+            }
+        }
+
+        async function handleAuth() {
+            const username = document.getElementById('authUsername').value.trim();
+            const password = document.getElementById('authPassword').value;
+            const password2 = document.getElementById('authPassword2').value;
+            const btn = document.getElementById('authBtn');
+
+            if (!username || !password) {
+                alert('请填写用户名和密码');
+                return;
+            }
+
+            btn.disabled = true;
+
+            try {
+                if (authMode === 'register') {
+                    if (password !== password2) {
+                        alert('两次输入的密码不一致');
+                        btn.disabled = false;
+                        return;
+                    }
+                    const guestUid = localStorage.getItem('heart_guest_uid');
+                    const formData = new FormData();
+                    formData.append('username', username);
+                    formData.append('password', password);
+                    if (guestUid) formData.append('guest_uid', guestUid);
+
+                    const res = await fetch('/register', { method: 'POST', body: formData });
+                    const data = await res.json();
+
+                    if (data.error) {
+                        alert(data.error);
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    localStorage.setItem('heart_token', data.token);
+                    localStorage.removeItem('heart_guest_uid');
+                    updateUserBar(data.user.username);
+                    closeAuthModal();
+                    loadHistory();
+                    alert(`🎉 注册成功！已迁移 ${data.migrated} 条心动记录`);
+                } else {
+                    const formData = new FormData();
+                    formData.append('username', username);
+                    formData.append('password', password);
+
+                    const res = await fetch('/login', { method: 'POST', body: formData });
+                    const data = await res.json();
+
+                    if (data.error) {
+                        alert(data.error);
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    localStorage.setItem('heart_token', data.token);
+                    localStorage.removeItem('heart_guest_uid');
+                    updateUserBar(data.user.username);
+                    closeAuthModal();
+                    loadHistory();
+                }
+            } catch (err) {
+                alert('请求失败: ' + err.message);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('heart_token');
+            localStorage.removeItem('heart_guest_uid');
+            updateUserBar(null);
+            loadHistory();
+        }
+
+        // 页面加载时初始化
+        initAuth();
+        loadHistory();
+
+        async function analyze() {
+            const crushName = document.getElementById('crushName').value.trim();
+            let chatText = document.getElementById('chatText').value.trim();
+            const btn = document.getElementById('analyzeBtn');
+            const loading = document.getElementById('loadingArea');
+            const errorArea = document.getElementById('errorArea');
+            const resultArea = document.getElementById('resultArea');
+
+            // 如果没有手动输入但有 OCR 结果，自动使用 OCR 文本
+            if (!chatText) {
+                const ocrText = await getMergedOcrText();
+                if (ocrText) {
+                    chatText = ocrText;
+                    document.getElementById('chatText').value = ocrText;
+                }
+            }
+
+            if (!crushName || !chatText) {
+                errorArea.innerHTML = '<div class="error-box">请填写 ta 的名字和聊天记录 🌸</div>';
+                return;
+            }
+
+            btn.disabled = true;
+            loading.innerHTML = '<div class="loading">正在解码心动信号...</div>';
+            errorArea.innerHTML = '';
+            resultArea.classList.remove('show');
+
+            try {
+                const formData = new FormData();
+                formData.append('crush_name', crushName);
+                formData.append('chat_text', chatText);
+
+                // 收集所有图片的 OCR 文本
+                const ocrTexts = [];
+                document.querySelectorAll('.image-item').forEach(item => {
+                    const id = item.dataset.id;
+                    const status = item.querySelector('.img-status');
+                    if (status && status.classList.contains('done')) {
+                        // 从后端获取 OCR 文本（已经在 images 数组中）
+                        // 这里用一个简单方法：直接传空，让后端去查询
+                    }
+                });
+
+                // 更好的方法：直接传入合并的 OCR 文本
+                const mergedOcr = await getMergedOcrText();
+                if (mergedOcr) {
+                    formData.append('ocr_text', mergedOcr);
+                }
+
+                const res = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData,
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    errorArea.innerHTML = `<div class="error-box">分析失败：${data.error}</div>`;
+                    return;
+                }
+
+                showResult(data);
+                loadHistory();
+
+            } catch (err) {
+                errorArea.innerHTML = `<div class="error-box">请求失败：${err.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                loading.innerHTML = '';
+            }
+        }
+
+        function showResult(data) {
+            document.getElementById('heartRate').textContent = data.heart_rate;
+            document.getElementById('level').textContent = data.level;
+
+            // 五维度
+            const dimContainer = document.getElementById('dimensions');
+            const dimMap = {
+                initiative: '主动性',
+                response_quality: '回应质量',
+                emotional_temp: '情绪温度',
+                time_signals: '时间信号',
+                exclusivity: '专属感'
+            };
+            dimContainer.innerHTML = '';
+            for (const [key, label] of Object.entries(dimMap)) {
+                const d = data.dimensions[key] || { score: 0, evidence: '' };
+                const div = document.createElement('div');
+                div.className = 'dim-item';
+                div.title = d.evidence;
+                div.innerHTML = `
+                    <div class="dim-name">${label}</div>
+                    <div class="dim-score">${d.score}</div>
+                    <div class="dim-bar"><div class="dim-bar-fill" style="width:${d.score}%"></div></div>
+                `;
+                dimContainer.appendChild(div);
+            }
+
+            // 关键信号
+            const sigContainer = document.getElementById('signals');
+            sigContainer.innerHTML = '';
+            (data.key_signals || []).forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'signal-item';
+                div.textContent = s;
+                sigContainer.appendChild(div);
+            });
+
+            // 建议
+            document.getElementById('advice').textContent = data.advice || '暂无建议';
+
+            // 风险预警
+            const riskArea = document.getElementById('riskArea');
+            if (data.risk_warning) {
+                document.getElementById('riskWarning').textContent = '⚠️ ' + data.risk_warning;
+                riskArea.style.display = 'block';
+            } else {
+                riskArea.style.display = 'none';
+            }
+
+            document.getElementById('resultArea').classList.add('show');
+            // 更新迷你柱状图
+            currentTrendCrush = data.crush_name;
+            updateTrendSelectValue(data.crush_name);
+            loadTrend(data.crush_name);
+            // 更新心电图
+            currentEcgCrush = data.crush_name;
+            loadTimeline(data.crush_name);
+            // 未登录时显示注册提示
+            const token = localStorage.getItem('heart_token');
+            document.getElementById('registerHint').style.display = token ? 'none' : 'block';
+            // 滚动到结果
+            setTimeout(() => {
+                resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/history?limit=20', { headers: getAuthHeaders() });
+                const data = await res.json();
+                const container = document.getElementById('historyList');
+
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<div class="empty-state">暂无记录，快来解码第一个 crush 吧~ 🌸</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                // 收集所有唯一的 crush，用于下拉框
+                const uniqueCrushes = [...new Set(data.map(item => item.crush_name))];
+                updateEcgCrushSelect(uniqueCrushes);
+                updateTrendCrushSelect(uniqueCrushes);
+
+                data.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'history-item';
+                    const date = new Date(item.created_at).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    div.innerHTML = `
+                        <div>
+                            <div class="h-name">${item.crush_name}</div>
+                            <div class="h-date">${date} · ${item.level}</div>
+                        </div>
+                        <div class="h-score">${item.heart_rate}</div>
+                    `;
+                    div.onclick = () => {
+                        currentEcgCrush = item.crush_name;
+                        currentTrendCrush = item.crush_name;
+                        updateEcgSelectValue(item.crush_name);
+                        updateTrendSelectValue(item.crush_name);
+                        loadTimeline(item.crush_name);
+                        loadTrend(item.crush_name);
+                        showResult(item);
+                    };
+                    container.appendChild(div);
+                });
+                // 页面加载时，自动显示最近分析的 crush
+                if (!currentEcgCrush && data.length > 0) {
+                    currentEcgCrush = data[0].crush_name;
+                    updateEcgSelectValue(data[0].crush_name);
+                    loadTimeline(data[0].crush_name);
+                }
+                if (!currentTrendCrush && data.length > 0) {
+                    currentTrendCrush = data[0].crush_name;
+                    updateTrendSelectValue(data[0].crush_name);
+                    loadTrend(data[0].crush_name);
+                }
+            } catch (err) {
+                console.error('loadHistory error', err);
+            }
+        }
+
+        let trendChartInstance = null;
+        let currentTrendCrush = '';
+
+        async function loadTrend(crushName) {
+            const chartContainer = document.getElementById('trendChartContainer');
+            const emptyState = document.getElementById('trendEmpty');
+
+            try {
+                const res = await fetch(`/trend?crush_name=${encodeURIComponent(crushName)}`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+
+                if (!data || data.length === 0) {
+                    chartContainer.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    return;
+                }
+
+                chartContainer.style.display = 'block';
+                emptyState.style.display = 'none';
+                renderTrend(data);
+            } catch (err) {
+                console.error('loadTrend error', err);
+                chartContainer.style.display = 'none';
+                emptyState.style.display = 'block';
+            }
+        }
+
+        function renderTrend(data) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+
+            if (trendChartInstance) {
+                trendChartInstance.destroy();
+            }
+
+            const labels = data.map((d, i) => {
+                const date = new Date(d.created_at);
+                return `${date.getMonth() + 1}/${date.getDate()}`;
+            });
+            const scores = data.map(d => d.heart_rate);
+
+            // 根据分数设置柱子颜色
+            const barColors = scores.map(score => {
+                if (score >= 80) return '#F38BB6';
+                if (score >= 60) return '#FDC5DA';
+                if (score >= 40) return '#B8D982';
+                return '#EDE9E0';
+            });
+
+            trendChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '心动指数',
+                        data: scores,
+                        backgroundColor: barColors,
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        barPercentage: 0.25,
+                        categoryPercentage: 0.9
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#5A8221',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#7DAE3E',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            displayColors: false,
+                            callbacks: {
+                                title: function(context) {
+                                    const idx = context[0].dataIndex;
+                                    return data[idx].level;
+                                },
+                                label: function(context) {
+                                    return `心动指数: ${context.parsed.y}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(0,0,0,0.03)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#bbb',
+                                font: { size: 9 },
+                                maxTicksLimit: 4
+                            }
+                        },
+                        x: {
+                            grid: { display: false, drawBorder: false },
+                            ticks: {
+                                color: '#999',
+                                font: { size: 9 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function onTrendCrushChange(name) {
+            if (!name) return;
+            currentTrendCrush = name;
+            loadTrend(name);
+        }
+
+        function updateTrendCrushSelect(crushes) {
+            const select = document.getElementById('trendCrushSelect');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">选择查看对象...</option>';
+            crushes.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+            if (currentVal && crushes.includes(currentVal)) {
+                select.value = currentVal;
+            }
+        }
+
+        function updateTrendSelectValue(name) {
+            const select = document.getElementById('trendCrushSelect');
+            select.value = name;
+        }
+
+        // ===== 图片 OCR 相关 =====
+        let editingImageId = null;
+
+        async function handleImageSelect(event) {
+            const files = Array.from(event.target.files);
+            if (files.length === 0) return;
+            await uploadImages(files);
+            event.target.value = '';
+        }
+
+        async function handleDrop(event) {
+            event.preventDefault();
+            document.getElementById('uploadArea').classList.remove('dragover');
+            const files = Array.from(event.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+            if (files.length === 0) return;
+            await uploadImages(files);
+        }
+
+        async function uploadImages(files) {
+            const formData = new FormData();
+            for (const file of files) {
+                formData.append('files', file);
+            }
+
+            try {
+                const res = await fetch('/upload_images', {
+                    method: 'POST',
+                    body: formData,
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                // 自动对每张图片执行 OCR
+                for (const img of data.images) {
+                    doOcr(img.id);
+                }
+
+        
+        async function getMergedOcrText() {
+            try {
+                const res = await fetch('/images', { headers: getAuthHeaders() });
+                const images = await res.json();
+                const texts = images
+                    .filter(img => img.status === 'done' && img.ocr_text)
+                    .map(img => img.ocr_text)
+                    .filter(t => t.trim());
+                return texts.join('\n\n');
+            } catch (err) {
+                console.error('getMergedOcrText error', err);
+                return '';
+            }
+        }
+        loadImages();
+            } catch (err) {
+                alert('上传失败: ' + err.message);
+            }
+        }
+
+        async function loadImages() {
+            try {
+                const res = await fetch('/images', { headers: getAuthHeaders() });
+                const images = await res.json();
+                renderImageGrid(images);
+                document.getElementById('uploadCount').textContent = images.length;
+            } catch (err) {
+                console.error('loadImages error', err);
+            }
+        }
+
+        function renderImageGrid(images) {
+            const grid = document.getElementById('imageGrid');
+            if (images.length === 0) {
+                grid.innerHTML = '';
+                return;
+            }
+
+            grid.innerHTML = images.map(img => `
+                <div class="image-item" data-id="${img.id}">
+                    <span class="img-status ${img.status}">${statusLabel(img.status)}</span>
+                    <img class="img-thumb" src="${img.url}" alt="${img.original_name}" loading="lazy"
+                         onclick="editOcr(${img.id}, \`${escapeHtml(img.ocr_text || '')}\`)" style="cursor:pointer;">
+                    <div class="img-name">${escapeHtml(img.original_name)}</div>
+                    <div class="img-actions">
+                        <button class="img-btn ocr" onclick="doOcr(${img.id})" ${img.status === 'processing' ? 'disabled' : ''}>🔍 识别</button>
+                        <button class="img-btn ocr" onclick="editOcr(${img.id}, \`${escapeHtml(img.ocr_text || '')}\`)" style="background:#E3F2FD;color:#1976D2;">📝 编辑</button>
+                        <button class="img-btn delete" onclick="deleteImage(${img.id})">🗑️ 删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function statusLabel(status) {
+            const map = { pending: '待识别', processing: '识别中', done: '已完成', error: '失败' };
+            return map[status] || status;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function doOcr(imageId) {
+            const item = document.querySelector(`.image-item[data-id="${imageId}"]`);
+            if (item) {
+                const status = item.querySelector('.img-status');
+                status.textContent = '识别中';
+                status.className = 'img-status processing';
+            }
+
+            try {
+                const res = await fetch(`/images/${imageId}/ocr`, {
+                    method: 'POST',
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+        
+        async function getMergedOcrText() {
+            try {
+                const res = await fetch('/images', { headers: getAuthHeaders() });
+                const images = await res.json();
+                const texts = images
+                    .filter(img => img.status === 'done' && img.ocr_text)
+                    .map(img => img.ocr_text)
+                    .filter(t => t.trim());
+                return texts.join('\n\n');
+            } catch (err) {
+                console.error('getMergedOcrText error', err);
+                return '';
+            }
+        }
+        loadImages();
+            } catch (err) {
+                console.error('OCR error', err);
+        
+        async function getMergedOcrText() {
+            try {
+                const res = await fetch('/images', { headers: getAuthHeaders() });
+                const images = await res.json();
+                const texts = images
+                    .filter(img => img.status === 'done' && img.ocr_text)
+                    .map(img => img.ocr_text)
+                    .filter(t => t.trim());
+                return texts.join('\n\n');
+            } catch (err) {
+                console.error('getMergedOcrText error', err);
+                return '';
+            }
+        }
+        loadImages();
+            }
+        }
+
+        async function deleteImage(imageId) {
+            if (!confirm('确定删除这张图片吗？')) return;
+
+            try {
+                const res = await fetch(`/images/${imageId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                if (res.ok) {
+            
+        async function getMergedOcrText() {
+            try {
+                const res = await fetch('/images', { headers: getAuthHeaders() });
+                const images = await res.json();
+                const texts = images
+                    .filter(img => img.status === 'done' && img.ocr_text)
+                    .map(img => img.ocr_text)
+                    .filter(t => t.trim());
+                return texts.join('\n\n');
+            } catch (err) {
+                console.error('getMergedOcrText error', err);
+                return '';
+            }
+        }
+        loadImages();
+                }
+            } catch (err) {
+                alert('删除失败: ' + err.message);
+            }
+        }
+
+        function editOcr(imageId, text) {
+            editingImageId = imageId;
+            document.getElementById('ocrEditTextarea').value = text;
+            document.getElementById('ocrEditSection').style.display = 'block';
+            document.getElementById('ocrEditSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function saveOcrEdit() {
+            if (!editingImageId) return;
+            const text = document.getElementById('ocrEditTextarea').value;
+
+            try {
+                const formData = new FormData();
+                formData.append('ocr_text', text);
+                const res = await fetch(`/images/${editingImageId}/ocr`, {
+                    method: 'PUT',
+                    body: formData,
+                    headers: getAuthHeaders()
+                });
+                if (res.ok) {
+                    document.getElementById('ocrEditSection').style.display = 'none';
+                    editingImageId = null;
+            
+        async function getMergedOcrText() {
+            try {
+                const res = await fetch('/images', { headers: getAuthHeaders() });
+                const images = await res.json();
+                const texts = images
+                    .filter(img => img.status === 'done' && img.ocr_text)
+                    .map(img => img.ocr_text)
+                    .filter(t => t.trim());
+                return texts.join('\n\n');
+            } catch (err) {
+                console.error('getMergedOcrText error', err);
+                return '';
+            }
+        }
+        loadImages();
+                }
+            } catch (err) {
+                alert('保存失败: ' + err.message);
+            }
+        }
+
+        function cancelOcrEdit() {
+            document.getElementById('ocrEditSection').style.display = 'none';
+            editingImageId = null;
+        }
+
+        // 页面加载时加载图片列表
+
+        async function getMergedOcrText() {
+            try {
+                const res = await fetch('/images', { headers: getAuthHeaders() });
+                const images = await res.json();
+                const texts = images
+                    .filter(img => img.status === 'done' && img.ocr_text)
+                    .map(img => img.ocr_text)
+                    .filter(t => t.trim());
+                return texts.join('\n\n');
+            } catch (err) {
+                console.error('getMergedOcrText error', err);
+                return '';
+            }
+        }
+        loadImages();
+
+        // ===== Crush心电图 =====
+        let ecgChart = null;
+        let currentEcgGranularity = 'day';
+        let currentEcgCrush = '';
+
+        function updateEcgCrushSelect(crushes) {
+            const select = document.getElementById('ecgCrushSelect');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">选择查看对象...</option>';
+            crushes.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+            // 保持当前选中值（如果存在于列表中）
+            if (currentVal && crushes.includes(currentVal)) {
+                select.value = currentVal;
+            }
+        }
+
+        function updateEcgSelectValue(name) {
+            const select = document.getElementById('ecgCrushSelect');
+            select.value = name;
+        }
+
+        function onCrushSelectChange(name) {
+            if (!name) return;
+            currentEcgCrush = name;
+            loadTimeline(name);
+        }
+
+        function switchEcgGranularity(mode) {
+            currentEcgGranularity = mode;
+            document.querySelectorAll('.ecg-toggle').forEach(b => b.classList.remove('active'));
+            document.getElementById(mode === 'day' ? 'btnDay' : 'btnWeek').classList.add('active');
+            if (currentEcgCrush) {
+                loadTimeline(currentEcgCrush);
+            }
+        }
+
+        async function loadTimeline(crushName) {
+            if (!crushName) {
+                crushName = currentEcgCrush;
+            }
+            if (!crushName) {
+                document.getElementById('ecgCard').style.display = 'none';
+                return;
+            }
+            currentEcgCrush = crushName;
+
+            const headers = getAuthHeaders();
+            const url = `/timeline?crush_name=${encodeURIComponent(crushName)}&granularity=${currentEcgGranularity}`;
+
+            try {
+                const res = await fetch(url, { headers });
+                const data = await res.json();
+
+                if (data.error) {
+                    console.error(data.error);
+                    return;
+                }
+
+                const card = document.getElementById('ecgCard');
+                const emptyState = document.getElementById('ecgEmptyState');
+                const chartContainer = document.getElementById('ecgChartContainer');
+                const stats = document.getElementById('ecgStats');
+
+                card.style.display = 'block';
+
+                if (!data.data || data.data.length < 2) {
+                    emptyState.style.display = 'block';
+                    chartContainer.style.display = 'none';
+                    stats.style.display = 'none';
+                } else {
+                    emptyState.style.display = 'none';
+                    chartContainer.style.display = 'block';
+                    stats.style.display = 'flex';
+                    renderEcgChart(data.data);
+
+                    const rates = data.data.map(d => d.heart_rate);
+                    const avg = Math.round(rates.reduce((a, b) => a + b, 0) / rates.length);
+                    const max = Math.round(Math.max(...rates));
+                    document.getElementById('ecgAvg').textContent = avg;
+                    document.getElementById('ecgDays').textContent = data.total_points;
+                    document.getElementById('ecgMax').textContent = max;
+                }
+            } catch (e) {
+                console.error('Timeline error:', e);
+            }
+        }
+
+        function renderEcgChart(data) {
+            const ctx = document.getElementById('ecgCanvas').getContext('2d');
+
+            if (ecgChart) {
+                ecgChart.destroy();
+            }
+
+            const labels = data.map(d => d.period);
+            const values = data.map(d => d.heart_rate);
+
+            ecgChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '心动指数',
+                        data: values,
+                        borderColor: '#F38BB6',
+                        backgroundColor: 'rgba(243, 139, 182, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        pointBackgroundColor: '#F38BB6',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 3,
+                        pointRadius: 6,
+                        pointHoverRadius: 10,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(243, 139, 182, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            padding: 12,
+                            cornerRadius: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    const idx = context.dataIndex;
+                                    const item = data[idx];
+                                    return [`心动指数: ${item.heart_rate}`, `阶段: ${item.level}`, `分析${item.count}次`];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(243, 139, 182, 0.1)',
+                                borderDash: [5, 5]
+                            },
+                            ticks: {
+                                color: '#777',
+                                font: { size: 11 }
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                color: '#777',
+                                font: { size: 11 },
+                                maxRotation: 45
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1500,
+                        easing: 'easeInOutQuart'
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
