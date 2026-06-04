@@ -2437,10 +2437,10 @@
                 const y = e.clientY - rect.top;
                 const cx = rect.width / 2;
                 const cy = rect.height / 2;
-                const rx = ((y - cy) / cy) * -8;
-                const ry = ((x - cx) / cx) * 8;
-                card.style.transform = `perspective(800px) rotateX(${rx}deg) rotateY(${ry}deg) translate(-2px, -2px)`;
-                card.style.boxShadow = `${8 + ry/2}px ${8 + rx/2}px 0 var(--black)`;
+                const rx = ((y - cy) / cy) * -3;
+                const ry = ((x - cx) / cx) * 3;
+                card.style.transform = `perspective(800px) rotateX(${rx}deg) rotateY(${ry}deg) translate(-1px, -1px)`;
+                card.style.boxShadow = `${6 + ry/3}px ${6 + rx/3}px 0 var(--black)`;
             });
             card.addEventListener('mouseleave', () => {
                 card.style.transform = '';
