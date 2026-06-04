@@ -1273,6 +1273,34 @@
         .pop-in {
             animation: popIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
         }
+
+        /* ===== 期间背景色 ===== */
+        body.stage-stranger { background: linear-gradient(180deg, #E3F2FD 0%, #BBDEFB 100%); }
+        body.stage-friend   { background: linear-gradient(180deg, #E0F7FA 0%, #B2EBF2 100%); }
+        body.stage-liking   { background: linear-gradient(180deg, #FFFDE7 0%, #FFF59D 100%); }
+        body.stage-ambiguous{ background: linear-gradient(180deg, #FCE4EC 0%, #F8BBD0 100%); }
+        body.stage-passion  { background: linear-gradient(180deg, #F48FB1 0%, #E91E63 100%); }
+        body.stage-deep     { background: linear-gradient(180deg, #C2185B 0%, #880E4F 100%); }
+        body {
+            transition: background 1.5s ease;
+        }
+
+        /* 仪表盘颜色随期调整 */
+        body.stage-stranger .gauge-fill { stroke: #42A5F5; }
+        body.stage-friend   .gauge-fill { stroke: #26C6DA; }
+        body.stage-liking   .gauge-fill { stroke: #FFCA28; }
+        body.stage-ambiguous .gauge-fill { stroke: #EC407A; }
+        body.stage-passion  .gauge-fill { stroke: #D50000; }
+        body.stage-deep     .gauge-fill { stroke: #FFEA00; }
+        body.stage-deep     .gauge-center .number { color: #fff; text-shadow: 2px 2px 0 var(--black); }
+        body.stage-deep     .gauge-center .level { background: #FFEA00; color: var(--black); }
+
+        /* 烟花 */
+        .firework {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1;
+        }
     </style>
 </head>
 <body>
@@ -1747,8 +1775,8 @@
                 }, 50);
             }
 
-            // 情绪粒子
-            updateParticles(data.heart_rate);
+            // 期间特效（背景色 + 粒子 + 烟花）
+            updateStageEffects(data.level, data.heart_rate);
 
             // 五维度
             renderRadar(data);
