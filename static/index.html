@@ -404,6 +404,38 @@
             overflow: hidden;
             border: 2px solid var(--black);
         }
+
+        .radar-detail-panel {
+            width: 100%;
+            margin-top: 16px;
+            padding: 20px;
+            background: var(--cream);
+            border-radius: 18px;
+            border: 3px solid var(--black);
+            box-shadow: 4px 4px 0 var(--black);
+            animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+        .radar-detail-title {
+            font-family: 'Rubik Mono One', 'Noto Sans SC', sans-serif;
+            font-size: 1.2rem;
+            color: var(--black);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .radar-detail-score {
+            display: inline-block;
+            font-family: 'Rubik Mono One', sans-serif;
+            font-size: 2.2rem;
+            color: var(--red);
+            margin-bottom: 10px;
+        }
+        .radar-detail-evidence {
+            font-size: 0.95rem;
+            color: var(--text-light);
+            line-height: 1.7;
+            font-weight: 500;
+        }
         .radar-details .dim-item .dim-bar-fill {
             height: 100%;
             border-radius: 2px;
@@ -1347,7 +1379,17 @@
             </div>
 
             <div class="section-title">📊 五维度分析</div>
-            <div class="dimensions" id="dimensions"></div>
+            <div class="dimensions-radar" id="dimensions">
+                <div class="radar-chart-wrap">
+                    <canvas id="radarChart"></canvas>
+                </div>
+                <div class="radar-details" id="radarDetails"></div>
+                <div class="radar-detail-panel" id="radarDetailPanel" style="display:none;">
+                    <div class="radar-detail-title" id="radarDetailTitle"></div>
+                    <div class="radar-detail-score" id="radarDetailScore"></div>
+                    <div class="radar-detail-evidence" id="radarDetailEvidence"></div>
+                </div>
+            </div>
 
             <div class="section-title">💡 关键信号</div>
             <div class="signals" id="signals"></div>
@@ -1709,27 +1751,7 @@
             updateParticles(data.heart_rate);
 
             // 五维度
-            const dimContainer = document.getElementById('dimensions');
-            const dimMap = {
-                initiative: '主动性',
-                response_quality: '回应质量',
-                emotional_temp: '情绪温度',
-                time_signals: '时间信号',
-                exclusivity: '专属感'
-            };
-            dimContainer.innerHTML = '';
-            for (const [key, label] of Object.entries(dimMap)) {
-                const d = data.dimensions[key] || { score: 0, evidence: '' };
-                const div = document.createElement('div');
-                div.className = 'dim-item';
-                div.title = d.evidence;
-                div.innerHTML = `
-                    <div class="dim-name">${label}</div>
-                    <div class="dim-score">${d.score}</div>
-                    <div class="dim-bar"><div class="dim-bar-fill" style="width:${d.score}%"></div></div>
-                `;
-                dimContainer.appendChild(div);
-            }
+            renderRadar(data);
 
             // 关键信号
             const sigContainer = document.getElementById('signals');
@@ -2499,6 +2521,133 @@
                 particleMode = newMode;
                 particles.forEach(p => p.reset());
             }
+        }
+
+
+        // ===== 五维度雷达图 =====
+        let radarChartInstance = null;
+        const dimMap = {
+            initiative: { label: '主动性', icon: '🚀' },
+            response_quality: { label: '回应质量', icon: '💬' },
+            emotional_temp: { label: '情绪温度', icon: '🔥' },
+            time_signals: { label: '时间信号', icon: '⏰' },
+            exclusivity: { label: '专属感', icon: '🌟' }
+        };
+
+        function renderRadar(data) {
+            const detailsContainer = document.getElementById('radarDetails');
+            const detailPanel = document.getElementById('radarDetailPanel');
+            detailsContainer.innerHTML = '';
+            detailPanel.style.display = 'none';
+
+            const labels = [];
+            const scores = [];
+            const bgColors = [];
+            const dimKeys = Object.keys(dimMap);
+
+            dimKeys.forEach((key, idx) => {
+                const d = data.dimensions[key] || { score: 0, evidence: '暂无分析' };
+                labels.push(dimMap[key].label);
+                scores.push(d.score);
+                bgColors.push(d.score >= 70 ? 'var(--red)' : d.score >= 40 ? 'var(--yellow)' : 'var(--black)');
+
+                const card = document.createElement('div');
+                card.className = 'dim-item';
+                card.dataset.key = key;
+                card.dataset.score = d.score;
+                card.dataset.evidence = d.evidence;
+                card.dataset.label = dimMap[key].label;
+                card.dataset.icon = dimMap[key].icon;
+                card.innerHTML = `
+                    <div class="dim-name">${dimMap[key].icon} ${dimMap[key].label}</div>
+                    <div class="dim-score">${d.score}</div>
+                    <div class="dim-bar"><div class="dim-bar-fill" style="width:${d.score}%;background:${bgColors[idx]}"></div></div>
+                `;
+                card.onclick = () => {
+                    document.querySelectorAll('.radar-details .dim-item').forEach(el => el.classList.remove('active'));
+                    card.classList.add('active');
+                    showRadarDetail(key, d.score, d.evidence, dimMap[key].label, dimMap[key].icon);
+                };
+                detailsContainer.appendChild(card);
+            });
+
+            // 自动展开第一个
+            if (dimKeys.length > 0) {
+                const firstKey = dimKeys[0];
+                const firstD = data.dimensions[firstKey] || { score: 0, evidence: '暂无分析' };
+                setTimeout(() => {
+                    const firstCard = detailsContainer.querySelector('.dim-item');
+                    if (firstCard) firstCard.click();
+                }, 300);
+            }
+
+            // Chart.js 雷达图
+            const ctx = document.getElementById('radarChart');
+            if (!ctx) return;
+
+            if (radarChartInstance) {
+                radarChartInstance.destroy();
+            }
+
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '心动指标',
+                        data: scores,
+                        backgroundColor: 'rgba(255, 59, 48, 0.25)',
+                        borderColor: 'var(--red)',
+                        borderWidth: 3,
+                        pointBackgroundColor: bgColors,
+                        pointBorderColor: 'var(--black)',
+                        pointBorderWidth: 3,
+                        pointRadius: 6,
+                        pointHoverRadius: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            min: 0,
+                            max: 100,
+                            ticks: { display: false },
+                            grid: { color: 'rgba(26,26,26,0.15)', lineWidth: 2 },
+                            angleLines: { color: 'rgba(26,26,26,0.1)', lineWidth: 2 },
+                            pointLabels: {
+                                font: { size: 13, family: "'Noto Sans SC', sans-serif", weight: '700' },
+                                color: 'var(--black)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    animation: {
+                        duration: 1200,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        function showRadarDetail(key, score, evidence, label, icon) {
+            const panel = document.getElementById('radarDetailPanel');
+            const titleEl = document.getElementById('radarDetailTitle');
+            const scoreEl = document.getElementById('radarDetailScore');
+            const evidenceEl = document.getElementById('radarDetailEvidence');
+
+            titleEl.textContent = `${icon} ${label}`;
+            scoreEl.textContent = score;
+            evidenceEl.textContent = evidence || '暂无详细分析';
+            panel.style.display = 'block';
+
+            // 重新触发动画
+            panel.style.animation = 'none';
+            panel.offsetHeight; // 触发 reflow
+            panel.style.animation = 'popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both';
         }
 
     </script>
