@@ -1,53 +1,52 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>心动解码器 | Crush Meter</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <style>
+<style>
+        @import url('https://fonts.googleapis.com/css2?family=Rubik+Mono+One&family=Noto+Sans+SC:wght@400;700;900&display=swap');
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --pink: #F38BB6;
-            --pink-light: #FDC5DA;
-            --pink-pale: #FFF0F5;
-            --green-dark: #5A8221;
-            --green: #7DAE3E;
-            --green-light: #B8D982;
-            --cream: #F7F5F0;
-            --cream-dark: #EDE9E0;
-            --text: #3D3D3D;
-            --text-light: #777;
+            --red: #FF3B30;
+            --red-dark: #E62E24;
+            --yellow: #FFCC00;
+            --yellow-light: #FFE066;
+            --black: #1a1a1a;
+            --white: #ffffff;
+            --cream: #FFF8E7;
+            --text: #1a1a1a;
+            --text-light: #555555;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
-            background: var(--cream);
+            font-family: 'Noto Sans SC', -apple-system, sans-serif;
+            background: var(--yellow);
             min-height: 100vh;
             color: var(--text);
+            overflow-x: hidden;
         }
 
-        /* 顶部粉色装饰条 */
+        .ticker {
+            background: var(--black);
+            color: var(--yellow);
+            padding: 8px 0;
+            overflow: hidden;
+            white-space: nowrap;
+            position: relative;
+        }
+        .ticker-inner {
+            display: inline-block;
+            animation: ticker 20s linear infinite;
+            font-weight: 700;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+        @keyframes ticker {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
         .top-bar {
-            height: 8px;
-            background: linear-gradient(90deg, var(--pink), var(--green));
-        }
-
-        /* 波浪分隔线 */
-        .wave-divider {
-            width: 100%;
-            height: 40px;
-            background: var(--pink);
-            mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 120'%3E%3Cpath fill='%23fff' d='M0,64 C480,150 960,-20 1440,64 L1440,120 L0,120 Z'/%3E%3C/svg%3E");
-            mask-size: cover;
-            mask-position: bottom;
-            -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 120'%3E%3Cpath fill='%23fff' d='M0,64 C480,150 960,-20 1440,64 L1440,120 L0,120 Z'/%3E%3C/svg%3E");
-            -webkit-mask-size: cover;
-            -webkit-mask-position: bottom;
-        }
-        .wave-divider.reverse {
-            transform: rotate(180deg);
+            height: 12px;
+            background: var(--red);
+            border-bottom: 4px solid var(--black);
         }
 
         .container {
@@ -56,80 +55,48 @@
             padding: 0 20px 40px;
         }
 
-        /* Header */
         header {
             text-align: center;
             padding: 48px 20px 32px;
             position: relative;
         }
-        header::before {
-            content: '🌿';
-            position: absolute;
-            left: 10%;
-            top: 30px;
-            font-size: 2rem;
-            opacity: 0.4;
-            animation: float 3s ease-in-out infinite;
-        }
-        header::after {
-            content: '🌸';
-            position: absolute;
-            right: 10%;
-            top: 40px;
-            font-size: 2rem;
-            opacity: 0.4;
-            animation: float 3s ease-in-out infinite 1s;
-        }
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
         header h1 {
+            font-family: 'Rubik Mono One', 'Noto Sans SC', sans-serif;
             font-size: 2.8rem;
-            color: var(--green-dark);
+            color: var(--black);
             margin-bottom: 8px;
             letter-spacing: 2px;
+            text-transform: uppercase;
+            line-height: 1.2;
         }
         header h1 span {
-            color: var(--pink);
+            color: var(--red);
         }
         header p {
             color: var(--text-light);
             font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 1px;
         }
 
-        /* 便签纸风格的卡片 */
         .card {
-            background: #fff;
-            border-radius: 20px;
+            background: var(--white);
+            border-radius: 24px;
             padding: 28px;
             margin-bottom: 24px;
-            box-shadow: 0 4px 20px rgba(243, 139, 182, 0.12),
-                        0 1px 3px rgba(0,0,0,0.05);
+            border: 4px solid var(--black);
+            box-shadow: 8px 8px 0 var(--black);
             position: relative;
+            transition: transform 0.15s, box-shadow 0.15s;
         }
-        .card::before {
-            content: '';
-            position: absolute;
-            top: -6px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60px;
-            height: 18px;
-            background: linear-gradient(135deg, var(--pink-light), var(--pink));
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            opacity: 0.7;
+        .card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 10px 10px 0 var(--black);
         }
         .card.pink-card {
-            background: linear-gradient(135deg, var(--pink-pale), #fff);
-            border: 2px dashed var(--pink-light);
-        }
-        .card.pink-card::before {
-            background: var(--green);
+            background: var(--cream);
         }
 
-        /* 并排卡片 */
         .cards-row {
             display: flex;
             gap: 20px;
@@ -139,15 +106,14 @@
             flex: 1;
             min-width: 0;
             margin-bottom: 0;
+            height: 520px;
+            display: flex;
+            flex-direction: column;
         }
         @media (max-width: 640px) {
-            .cards-row {
-                flex-direction: column;
-                gap: 16px;
-            }
-            .card-half {
-                margin-bottom: 0;
-            }
+            .cards-row { flex-direction: column; gap: 16px; }
+            .card-half { margin-bottom: 0; }
+            header h1 { font-size: 2rem; }
         }
 
         .input-group {
@@ -156,58 +122,100 @@
         .input-group label {
             display: block;
             margin-bottom: 8px;
-            color: var(--green-dark);
-            font-weight: 600;
-            font-size: 0.95rem;
+            color: var(--black);
+            font-weight: 900;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
-        .input-group label::before {
-            content: '🍃 ';
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .clear-btn {
+            padding: 6px 16px;
+            border: 3px solid var(--black);
+            border-radius: 50px;
+            background: var(--red);
+            color: var(--white);
+            font-size: 0.8rem;
+            font-weight: 900;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 3px 3px 0 var(--black);
+        }
+        .clear-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 5px 5px 0 var(--black);
+        }
+        .clear-btn:active {
+            transform: translate(0, 0);
+            box-shadow: 3px 3px 0 var(--black);
         }
         .input-group input,
         .input-group textarea {
             width: 100%;
-            padding: 14px 16px;
-            border: 2px solid var(--cream-dark);
-            border-radius: 16px;
-            background: var(--cream);
+            padding: 14px 18px;
+            border: 4px solid var(--black);
+            border-radius: 50px;
+            background: var(--white);
             color: var(--text);
             font-size: 1rem;
             outline: none;
-            transition: all 0.3s;
+            transition: all 0.15s;
             font-family: inherit;
+            font-weight: 500;
         }
         .input-group input:focus,
         .input-group textarea:focus {
-            border-color: var(--pink);
-            box-shadow: 0 0 0 3px rgba(243, 139, 182, 0.15);
+            background: var(--yellow-light);
+            box-shadow: 4px 4px 0 var(--black);
         }
         .input-group textarea {
             min-height: 200px;
             resize: vertical;
             line-height: 1.7;
+            border-radius: 20px;
         }
 
-        /* 椭圆形按钮 */
         .btn {
             width: 100%;
-            padding: 16px 32px;
-            border: none;
+            padding: 18px 32px;
+            border: 4px solid var(--black);
             border-radius: 50px;
-            background: linear-gradient(135deg, var(--green), var(--green-light));
-            color: #fff;
+            background: var(--yellow);
+            color: var(--black);
             font-size: 1.1rem;
-            font-weight: 700;
+            font-weight: 900;
             cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(125, 174, 62, 0.3);
-            letter-spacing: 1px;
+            transition: all 0.15s;
+            box-shadow: 6px 6px 0 var(--black);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
         }
         .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(125, 174, 62, 0.4);
+            transform: translate(-3px, -3px);
+            box-shadow: 9px 9px 0 var(--black);
+            background: var(--yellow-light);
+        }
+        .btn:hover .btn-icon {
+            animation: heartPulse 0.6s ease-in-out;
+        }
+        @keyframes heartPulse {
+            0%, 100% { transform: scale(1); }
+            25% { transform: scale(1.3); }
+            50% { transform: scale(1); }
+            75% { transform: scale(1.2); }
         }
         .btn:active {
-            transform: translateY(0);
+            transform: translate(0, 0);
+            box-shadow: 6px 6px 0 var(--black);
         }
         .btn:disabled {
             opacity: 0.6;
@@ -215,44 +223,62 @@
             transform: none;
         }
 
-        /* 粉色区块 */
         .pink-section {
-            background: linear-gradient(135deg, var(--pink), var(--pink-light));
-            margin: 0 -20px;
-            padding: 32px 20px;
+            background: var(--red);
+            margin: 0;
+            padding: 32px 0;
             position: relative;
+            border-top: 4px solid var(--black);
+            border-bottom: 4px solid var(--black);
         }
 
-        /* 结果展示 */
         .result { display: none; }
-        .result.show { display: block; animation: fadeIn 0.6s; }
+        .result.show { display: block; }
+        .result.show > * {
+            animation: fadeInUp 0.6s ease-out both;
+        }
+        .result.show > *:nth-child(1) { animation-delay: 0s; }
+        .result.show > *:nth-child(2) { animation-delay: 0.1s; }
+        .result.show > *:nth-child(3) { animation-delay: 0.2s; }
+        .result.show > *:nth-child(4) { animation-delay: 0.3s; }
+        .result.show > *:nth-child(5) { animation-delay: 0.4s; }
+        .result.show > *:nth-child(6) { animation-delay: 0.5s; }
+        .result.show > *:nth-child(7) { animation-delay: 0.6s; }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
         .heart-score {
             text-align: center;
             margin-bottom: 32px;
             padding: 24px;
-            background: linear-gradient(135deg, var(--pink-pale), #fff);
+            background: var(--yellow);
             border-radius: 24px;
-            border: 3px solid var(--pink-light);
+            border: 4px solid var(--black);
+            box-shadow: 6px 6px 0 var(--black);
         }
         .heart-score .number {
+            font-family: 'Rubik Mono One', sans-serif;
             font-size: 5rem;
-            font-weight: 800;
-            color: var(--pink);
+            font-weight: 400;
+            color: var(--black);
             line-height: 1;
-            text-shadow: 2px 2px 0 var(--pink-light);
         }
         .heart-score .level {
             display: inline-block;
             padding: 8px 24px;
             border-radius: 50px;
-            background: var(--green);
-            color: #fff;
-            font-weight: 700;
+            background: var(--red);
+            color: var(--white);
+            font-weight: 900;
             margin-top: 12px;
             font-size: 1.1rem;
-            box-shadow: 0 3px 10px rgba(90, 130, 33, 0.2);
+            border: 3px solid var(--black);
+            box-shadow: 3px 3px 0 var(--black);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .dimensions {
@@ -262,227 +288,263 @@
             margin-bottom: 28px;
         }
         .dim-item {
-            background: linear-gradient(135deg, #fff, var(--cream));
+            background: var(--white);
             border-radius: 20px;
             padding: 18px 14px;
             text-align: center;
-            border: 2px solid var(--cream-dark);
-            transition: transform 0.2s, box-shadow 0.2s;
+            border: 3px solid var(--black);
+            box-shadow: 4px 4px 0 var(--black);
+            transition: transform 0.15s, box-shadow 0.15s;
         }
         .dim-item:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(243, 139, 182, 0.15);
-            border-color: var(--pink-light);
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 var(--black);
         }
         .dim-item .dim-name {
             font-size: 0.85rem;
             color: var(--text-light);
             margin-bottom: 8px;
-            font-weight: 500;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .dim-item .dim-score {
+            font-family: 'Rubik Mono One', sans-serif;
             font-size: 2rem;
-            font-weight: 800;
-            color: var(--green-dark);
+            font-weight: 400;
+            color: var(--black);
         }
         .dim-item .dim-bar {
-            height: 8px;
-            background: var(--cream-dark);
-            border-radius: 4px;
+            height: 10px;
+            background: var(--cream);
+            border-radius: 5px;
             margin-top: 10px;
             overflow: hidden;
+            border: 2px solid var(--black);
         }
         .dim-item .dim-bar-fill {
             height: 100%;
-            border-radius: 4px;
-            background: linear-gradient(90deg, var(--pink), var(--green));
+            border-radius: 3px;
+            background: var(--yellow);
             transition: width 1s ease-out;
         }
 
-        /* 雷达图布局 */
         .dimensions-radar {
             display: flex;
-            gap: 20px;
+            flex-direction: column;
             align-items: center;
             margin-bottom: 28px;
-            background: linear-gradient(135deg, #fff, var(--cream));
-            border-radius: 20px;
+            background: var(--white);
+            border-radius: 24px;
             padding: 20px;
-            border: 2px solid var(--cream-dark);
+            border: 4px solid var(--black);
+            box-shadow: 6px 6px 0 var(--black);
         }
         .radar-chart-wrap {
-            flex: 0 0 220px;
-            height: 220px;
+            width: 320px;
+            height: 320px;
             position: relative;
+            margin-bottom: 16px;
         }
         .radar-details {
-            flex: 1;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            display: flex;
             gap: 10px;
+            width: 100%;
+            justify-content: center;
+            flex-wrap: wrap;
         }
         .radar-details .dim-item {
-            background: #fff;
+            flex: 1;
+            min-width: 100px;
+            max-width: 140px;
+            background: var(--white);
             border-radius: 14px;
-            padding: 12px 10px;
+            padding: 14px 10px;
             text-align: center;
-            border: 2px solid var(--cream-dark);
-            transition: transform 0.2s, box-shadow 0.2s;
+            border: 3px solid var(--black);
+            box-shadow: 3px 3px 0 var(--black);
+            transition: transform 0.15s, box-shadow 0.15s;
+            cursor: pointer;
+            user-select: none;
         }
         .radar-details .dim-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(243, 139, 182, 0.12);
-            border-color: var(--pink-light);
+            transform: translate(-2px, -2px);
+            box-shadow: 5px 5px 0 var(--black);
+        }
+        .radar-details .dim-item.active {
+            background: var(--yellow);
+            box-shadow: 4px 4px 0 var(--black);
         }
         .radar-details .dim-item .dim-name {
             font-size: 0.8rem;
             color: var(--text-light);
             margin-bottom: 4px;
-            font-weight: 500;
+            font-weight: 700;
+            text-transform: uppercase;
         }
         .radar-details .dim-item .dim-score {
+            font-family: 'Rubik Mono One', sans-serif;
             font-size: 1.6rem;
-            font-weight: 800;
-            color: var(--green-dark);
+            font-weight: 400;
+            color: var(--black);
             line-height: 1.2;
         }
         .radar-details .dim-item .dim-bar {
-            height: 6px;
-            background: var(--cream-dark);
-            border-radius: 3px;
+            height: 8px;
+            background: var(--cream);
+            border-radius: 4px;
             margin-top: 8px;
             overflow: hidden;
+            border: 2px solid var(--black);
         }
         .radar-details .dim-item .dim-bar-fill {
             height: 100%;
-            border-radius: 3px;
-            background: linear-gradient(90deg, var(--pink), var(--green));
+            border-radius: 2px;
+            background: var(--yellow);
             transition: width 1s ease-out;
         }
+        .dim-detail-panel {
+            width: 100%;
+            margin-top: 16px;
+            padding: 20px 24px;
+            background: var(--yellow-light);
+            border-radius: 16px;
+            border: 3px dashed var(--black);
+            color: var(--text);
+            line-height: 1.8;
+            font-size: 0.95rem;
+            animation: fadeIn 0.3s ease;
+            display: none;
+        }
+        .dim-detail-panel.show { display: block; }
+        .dim-detail-panel .detail-label {
+            font-weight: 900;
+            color: var(--red);
+            margin-bottom: 8px;
+            font-size: 1rem;
+            text-transform: uppercase;
+        }
         @media (max-width: 640px) {
-            .dimensions-radar {
-                flex-direction: column;
-                padding: 16px;
-            }
-            .radar-chart-wrap {
-                flex: none;
-                width: 200px;
-                height: 200px;
-            }
-            .radar-details {
-                width: 100%;
-                grid-template-columns: repeat(3, 1fr);
-            }
+            .radar-chart-wrap { width: 260px; height: 260px; }
+            .radar-details { gap: 8px; }
+            .radar-details .dim-item { min-width: 80px; padding: 10px 8px; }
+            .radar-details .dim-item .dim-score { font-size: 1.3rem; }
         }
         @media (max-width: 400px) {
-            .radar-details {
-                grid-template-columns: repeat(2, 1fr);
-            }
+            .radar-chart-wrap { width: 220px; height: 220px; }
+            .radar-details .dim-item { min-width: 70px; max-width: none; }
         }
 
         .section-title {
             font-size: 1.15rem;
-            color: var(--green-dark);
+            color: var(--black);
             margin-bottom: 14px;
-            font-weight: 700;
+            font-weight: 900;
             display: flex;
             align-items: center;
             gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
-        .signals {
-            margin-bottom: 24px;
-        }
+        .signals { margin-bottom: 24px; }
         .signal-item {
-            background: linear-gradient(135deg, #fff, var(--pink-pale));
+            background: var(--white);
             border-radius: 16px;
             padding: 16px 20px;
             margin-bottom: 12px;
-            border-left: 4px solid var(--pink);
+            border-left: 6px solid var(--red);
             line-height: 1.7;
-            box-shadow: 0 2px 8px rgba(243, 139, 182, 0.08);
+            border: 3px solid var(--black);
+            box-shadow: 4px 4px 0 var(--black);
+            font-weight: 500;
         }
         .advice-box {
-            background: linear-gradient(135deg, var(--green-light), var(--green));
+            background: var(--yellow);
             border-radius: 20px;
             padding: 24px;
             line-height: 1.8;
-            color: #fff;
-            font-weight: 500;
+            color: var(--black);
+            font-weight: 700;
             position: relative;
             overflow: hidden;
-        }
-        .advice-box::before {
-            content: '💡';
-            position: absolute;
-            right: 16px;
-            top: 16px;
-            font-size: 2rem;
-            opacity: 0.3;
+            border: 4px solid var(--black);
+            box-shadow: 6px 6px 0 var(--black);
         }
         .risk-box {
-            background: linear-gradient(135deg, #FFF8E1, #FFECB3);
+            background: var(--cream);
             border-radius: 16px;
             padding: 18px 22px;
             margin-top: 16px;
-            border: 2px dashed #FFB300;
-            color: #E65100;
-            font-weight: 500;
+            border: 3px dashed var(--red);
+            color: var(--red);
+            font-weight: 700;
         }
 
-        /* 历史记录 */
         .history-list {
             display: grid;
             gap: 12px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 8px;
         }
+        .history-list::-webkit-scrollbar { width: 8px; }
+        .history-list::-webkit-scrollbar-track { background: var(--cream); border-radius: 10px; border: 2px solid var(--black); }
+        .history-list::-webkit-scrollbar-thumb { background: var(--red); border-radius: 10px; border: 2px solid var(--black); }
         .history-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: linear-gradient(135deg, #fff, var(--cream));
+            background: var(--white);
             border-radius: 16px;
             padding: 16px 20px;
             cursor: pointer;
-            transition: all 0.2s;
-            border: 2px solid transparent;
+            transition: all 0.15s;
+            border: 3px solid var(--black);
+            box-shadow: 4px 4px 0 var(--black);
         }
         .history-item:hover {
-            border-color: var(--pink-light);
-            transform: translateX(4px);
-            box-shadow: 0 4px 12px rgba(243, 139, 182, 0.1);
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 var(--black);
+            background: var(--yellow-light);
         }
         .history-item .h-name {
-            font-weight: 700;
-            color: var(--green-dark);
+            font-weight: 900;
+            color: var(--black);
         }
         .history-item .h-score {
+            font-family: 'Rubik Mono One', sans-serif;
             font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--pink);
+            font-weight: 400;
+            color: var(--red);
         }
         .history-item .h-date {
             font-size: 0.8rem;
             color: var(--text-light);
+            font-weight: 700;
         }
 
         .empty-state {
             text-align: center;
             color: var(--text-light);
             padding: 40px;
+            font-weight: 700;
         }
 
         .loading {
             text-align: center;
             padding: 40px;
-            color: var(--green);
-            font-weight: 600;
+            color: var(--black);
+            font-weight: 900;
+            text-transform: uppercase;
         }
         .loading::after {
             content: '';
             display: inline-block;
             width: 20px;
             height: 20px;
-            border: 3px solid var(--pink-light);
-            border-top-color: var(--pink);
+            border: 4px solid var(--black);
+            border-top-color: var(--red);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-left: 10px;
@@ -491,32 +553,27 @@
         @keyframes spin { to { transform: rotate(360deg); } }
 
         .error-box {
-            background: linear-gradient(135deg, #FFEBEE, #FFCDD2);
-            border: 2px solid #EF5350;
+            background: var(--cream);
+            border: 4px solid var(--red);
             border-radius: 16px;
             padding: 16px 20px;
-            color: #C62828;
+            color: var(--red);
             margin-top: 16px;
-            font-weight: 500;
+            font-weight: 700;
         }
 
-        /* 底部装饰 */
         footer {
             text-align: center;
             padding: 32px 20px;
             color: var(--text-light);
             font-size: 0.85rem;
-        }
-        footer .leaf {
-            font-size: 1.5rem;
-            margin: 0 4px;
+            font-weight: 700;
         }
 
-        /* 迷你趋势图 */
         .trend-section {
             margin-top: 20px;
             padding-top: 16px;
-            border-top: 2px dashed var(--pink-light);
+            border-top: 3px dashed var(--black);
         }
         .trend-section .section-title {
             margin-bottom: 10px;
@@ -525,15 +582,18 @@
         .trend-chart-container {
             position: relative;
             height: 280px;
-            background: linear-gradient(135deg, #fff, var(--pink-pale));
-            border-radius: 16px;
-            padding: 8px 8px 4px;
+            background: var(--white);
+            border-radius: 20px;
+            padding: 0;
+            border: 3px solid var(--black);
+            box-shadow: 4px 4px 0 var(--black);
         }
         .trend-empty {
             text-align: center;
             padding: 24px;
             color: var(--text-light);
             font-size: 0.85rem;
+            font-weight: 700;
         }
         .trend-empty .emoji {
             font-size: 1.5rem;
@@ -541,50 +601,56 @@
             display: block;
         }
 
-        /* 用户状态栏 */
         .user-bar {
             display: flex;
             justify-content: flex-end;
             align-items: center;
             padding: 12px 20px;
             gap: 12px;
-            background: #fff;
-            border-bottom: 1px solid var(--cream-dark);
+            background: var(--yellow);
+            border-bottom: 4px solid var(--black);
         }
         .user-bar .user-name {
-            font-weight: 600;
-            color: var(--green-dark);
+            font-weight: 900;
+            color: var(--black);
             font-size: 0.9rem;
+            text-transform: uppercase;
         }
         .user-bar .user-btn {
-            padding: 6px 16px;
+            padding: 8px 18px;
             border-radius: 50px;
-            border: none;
+            border: 3px solid var(--black);
             font-size: 0.85rem;
-            font-weight: 600;
+            font-weight: 900;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 3px 3px 0 var(--black);
         }
         .user-bar .btn-login {
-            background: linear-gradient(135deg, var(--green), var(--green-light));
-            color: #fff;
+            background: var(--red);
+            color: var(--white);
+        }
+        .user-bar .btn-login:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 5px 5px 0 var(--black);
         }
         .user-bar .btn-logout {
-            background: var(--cream);
-            color: var(--text-light);
-            border: 1px solid var(--cream-dark);
+            background: var(--white);
+            color: var(--black);
         }
         .user-bar .btn-logout:hover {
-            background: var(--pink-pale);
-            color: var(--pink);
+            background: var(--red);
+            color: var(--white);
+            transform: translate(-2px, -2px);
+            box-shadow: 5px 5px 0 var(--black);
         }
 
-        /* 弹窗 */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.4);
-            backdrop-filter: blur(4px);
+            background: rgba(0,0,0,0.6);
             display: none;
             justify-content: center;
             align-items: center;
@@ -596,26 +662,30 @@
             animation: fadeIn 0.3s;
         }
         .modal {
-            background: #fff;
-            border-radius: 24px;
+            background: var(--yellow);
+            border-radius: 28px;
             padding: 32px;
             width: 100%;
             max-width: 400px;
             position: relative;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            border: 4px solid var(--black);
+            box-shadow: 10px 10px 0 var(--black);
         }
         .modal-header {
             text-align: center;
             margin-bottom: 24px;
         }
         .modal-header h3 {
-            color: var(--green-dark);
+            color: var(--black);
             font-size: 1.4rem;
             margin-bottom: 4px;
+            font-weight: 900;
+            text-transform: uppercase;
         }
         .modal-header p {
             color: var(--text-light);
             font-size: 0.9rem;
+            font-weight: 700;
         }
         .modal-close {
             position: absolute;
@@ -625,115 +695,118 @@
             border: none;
             font-size: 1.5rem;
             cursor: pointer;
-            color: var(--text-light);
+            color: var(--black);
+            font-weight: 900;
         }
-        .modal-close:hover {
-            color: var(--pink);
-        }
+        .modal-close:hover { color: var(--red); }
         .modal-input {
             width: 100%;
             padding: 14px 16px;
-            border: 2px solid var(--cream-dark);
+            border: 4px solid var(--black);
             border-radius: 16px;
-            background: var(--cream);
+            background: var(--white);
             color: var(--text);
             font-size: 1rem;
             margin-bottom: 12px;
             outline: none;
-            transition: all 0.3s;
+            transition: all 0.15s;
+            font-weight: 500;
         }
         .modal-input:focus {
-            border-color: var(--pink);
-            box-shadow: 0 0 0 3px rgba(243, 139, 182, 0.15);
+            background: var(--yellow-light);
+            box-shadow: 4px 4px 0 var(--black);
         }
         .modal-btn {
             width: 100%;
             padding: 14px;
-            border: none;
+            border: 4px solid var(--black);
             border-radius: 50px;
             font-size: 1rem;
-            font-weight: 700;
+            font-weight: 900;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s;
             margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 4px 4px 0 var(--black);
         }
         .modal-btn-primary {
-            background: linear-gradient(135deg, var(--green), var(--green-light));
-            color: #fff;
-            box-shadow: 0 4px 15px rgba(125, 174, 62, 0.3);
+            background: var(--red);
+            color: var(--white);
         }
         .modal-btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(125, 174, 62, 0.4);
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 var(--black);
         }
         .modal-btn-secondary {
-            background: linear-gradient(135deg, var(--pink), var(--pink-light));
-            color: #fff;
-            box-shadow: 0 4px 15px rgba(243, 139, 182, 0.3);
+            background: var(--white);
+            color: var(--black);
         }
         .modal-btn-secondary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(243, 139, 182, 0.4);
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 var(--black);
         }
         .modal-footer {
             text-align: center;
             font-size: 0.85rem;
             color: var(--text-light);
+            font-weight: 700;
         }
         .modal-footer a {
-            color: var(--pink);
+            color: var(--red);
             cursor: pointer;
-            font-weight: 600;
+            font-weight: 900;
         }
         .modal-footer a:hover {
             text-decoration: underline;
         }
 
-        /* 注册提示条 */
         .register-hint {
-            background: linear-gradient(135deg, var(--pink-pale), #fff);
-            border: 2px dashed var(--pink);
+            background: var(--yellow-light);
+            border: 3px dashed var(--black);
             border-radius: 20px;
             padding: 20px;
             margin-top: 20px;
             text-align: center;
         }
         .register-hint p {
-            color: var(--green-dark);
-            font-weight: 600;
+            color: var(--black);
+            font-weight: 900;
             margin-bottom: 12px;
+            text-transform: uppercase;
         }
         .register-hint .hint-btn {
             padding: 10px 28px;
-            border: none;
+            border: 3px solid var(--black);
             border-radius: 50px;
-            background: linear-gradient(135deg, var(--pink), var(--pink-light));
-            color: #fff;
-            font-weight: 700;
+            background: var(--red);
+            color: var(--white);
+            font-weight: 900;
             cursor: pointer;
             font-size: 0.95rem;
-            box-shadow: 0 4px 12px rgba(243, 139, 182, 0.3);
+            box-shadow: 4px 4px 0 var(--black);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .register-hint .hint-btn:hover {
-            transform: translateY(-2px);
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 var(--black);
         }
 
-        /* 响应式 */
-        /* 图片上传 */
         .upload-area {
-            border: 2px dashed var(--pink-light);
+            border: 3px dashed var(--black);
             border-radius: 20px;
             padding: 32px;
             text-align: center;
-            background: linear-gradient(135deg, var(--pink-pale), #fff);
+            background: var(--cream);
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.15s;
             margin-bottom: 16px;
         }
         .upload-area:hover, .upload-area.dragover {
-            border-color: var(--pink);
-            background: linear-gradient(135deg, #fff, var(--pink-pale));
-            box-shadow: 0 4px 20px rgba(243, 139, 182, 0.15);
+            border-color: var(--red);
+            background: var(--yellow-light);
+            box-shadow: 4px 4px 0 var(--black);
         }
         .upload-area .upload-icon {
             font-size: 3rem;
@@ -743,24 +816,26 @@
         .upload-area .upload-text {
             color: var(--text-light);
             font-size: 0.95rem;
+            font-weight: 700;
         }
         .upload-area .upload-hint {
-            color: var(--pink);
+            color: var(--red);
             font-size: 0.8rem;
             margin-top: 8px;
+            font-weight: 700;
         }
         .upload-count {
             text-align: center;
             color: var(--text-light);
             font-size: 0.85rem;
             margin-bottom: 16px;
-        }
-        .upload-count .count-num {
-            color: var(--pink);
             font-weight: 700;
         }
+        .upload-count .count-num {
+            color: var(--red);
+            font-weight: 900;
+        }
 
-        /* 图片列表 */
         .image-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -771,13 +846,14 @@
             position: relative;
             border-radius: 16px;
             overflow: hidden;
-            background: #fff;
-            border: 2px solid var(--cream-dark);
-            transition: all 0.2s;
+            background: var(--white);
+            border: 3px solid var(--black);
+            box-shadow: 4px 4px 0 var(--black);
+            transition: all 0.15s;
         }
         .image-item:hover {
-            border-color: var(--pink-light);
-            box-shadow: 0 4px 12px rgba(243, 139, 182, 0.12);
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 var(--black);
         }
         .image-item .img-thumb {
             width: 100%;
@@ -792,24 +868,13 @@
             padding: 2px 8px;
             border-radius: 50px;
             font-size: 0.7rem;
-            font-weight: 600;
+            font-weight: 900;
+            border: 2px solid var(--black);
         }
-        .image-item .img-status.pending {
-            background: var(--cream-dark);
-            color: var(--text-light);
-        }
-        .image-item .img-status.processing {
-            background: #FFF3E0;
-            color: #E65100;
-        }
-        .image-item .img-status.done {
-            background: #E8F5E9;
-            color: var(--green-dark);
-        }
-        .image-item .img-status.error {
-            background: #FFEBEE;
-            color: #C62828;
-        }
+        .image-item .img-status.pending { background: var(--cream); color: var(--text-light); }
+        .image-item .img-status.processing { background: var(--yellow); color: var(--black); }
+        .image-item .img-status.done { background: var(--yellow-light); color: var(--black); }
+        .image-item .img-status.error { background: var(--red); color: var(--white); }
         .image-item .img-name {
             padding: 8px 10px;
             font-size: 0.75rem;
@@ -817,6 +882,7 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            font-weight: 700;
         }
         .image-item .img-actions {
             display: flex;
@@ -826,36 +892,38 @@
         .image-item .img-btn {
             flex: 1;
             padding: 4px 0;
-            border: none;
+            border: 2px solid var(--black);
             border-radius: 8px;
             font-size: 0.7rem;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s;
+            font-weight: 900;
+            box-shadow: 2px 2px 0 var(--black);
         }
         .image-item .img-btn.delete {
-            background: #FFEBEE;
-            color: #C62828;
+            background: var(--cream);
+            color: var(--red);
         }
         .image-item .img-btn.delete:hover {
-            background: #EF5350;
-            color: #fff;
+            background: var(--red);
+            color: var(--white);
         }
         .image-item .img-btn.ocr {
-            background: var(--pink-pale);
-            color: var(--pink);
+            background: var(--yellow);
+            color: var(--black);
         }
         .image-item .img-btn.ocr:hover {
-            background: var(--pink);
-            color: #fff;
+            background: var(--black);
+            color: var(--yellow);
         }
 
-        /* OCR 编辑区 */
         .ocr-edit-section {
             margin-top: 16px;
             padding: 16px;
-            background: linear-gradient(135deg, #fff, var(--cream));
+            background: var(--yellow-light);
             border-radius: 16px;
-            border: 2px dashed var(--cream-dark);
+            border: 3px solid var(--black);
+            box-shadow: 4px 4px 0 var(--black);
         }
         .ocr-edit-section .section-title {
             font-size: 1rem;
@@ -865,18 +933,19 @@
             width: 100%;
             min-height: 120px;
             padding: 12px;
-            border: 2px solid var(--cream-dark);
+            border: 3px solid var(--black);
             border-radius: 12px;
-            background: #fff;
+            background: var(--white);
             font-family: inherit;
             font-size: 0.9rem;
             line-height: 1.6;
             resize: vertical;
             outline: none;
+            font-weight: 500;
         }
         .ocr-textarea:focus {
-            border-color: var(--pink);
-            box-shadow: 0 0 0 3px rgba(243, 139, 182, 0.1);
+            border-color: var(--red);
+            box-shadow: 3px 3px 0 var(--black);
         }
         .ocr-actions {
             display: flex;
@@ -885,48 +954,56 @@
         }
         .ocr-actions .btn-small {
             padding: 8px 20px;
-            border: none;
+            border: 3px solid var(--black);
             border-radius: 50px;
             font-size: 0.85rem;
-            font-weight: 600;
+            font-weight: 900;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 3px 3px 0 var(--black);
         }
         .ocr-actions .btn-save {
-            background: var(--green);
-            color: #fff;
+            background: var(--red);
+            color: var(--white);
+        }
+        .ocr-actions .btn-save:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 5px 5px 0 var(--black);
         }
         .ocr-actions .btn-cancel {
-            background: var(--cream);
-            color: var(--text-light);
+            background: var(--white);
+            color: var(--black);
+        }
+        .ocr-actions .btn-cancel:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 5px 5px 0 var(--black);
         }
 
-        /* 图片上传输入框 */
-        #imageInput {
-            display: none;
-        }
+        #imageInput { display: none; }
 
-        /* Crush心电图 */
         .ecg-section {
             margin-top: 28px;
             padding-top: 24px;
-            border-top: 2px dashed var(--pink-light);
+            border-top: 3px dashed var(--black);
         }
         .ecg-entrance {
-            background: linear-gradient(135deg, var(--pink-pale), #fff);
-            border: 2px solid var(--pink-light);
+            background: var(--yellow);
+            border: 4px solid var(--black);
             border-radius: 20px;
             padding: 24px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.15s;
             text-align: center;
             position: relative;
             overflow: hidden;
+            box-shadow: 6px 6px 0 var(--black);
         }
         .ecg-entrance:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(243, 139, 182, 0.2);
-            border-color: var(--pink);
+            transform: translate(-3px, -3px);
+            box-shadow: 9px 9px 0 var(--black);
+            background: var(--yellow-light);
         }
         .ecg-entrance .heart-pulse {
             font-size: 3rem;
@@ -942,21 +1019,25 @@
             70% { transform: scale(1); }
         }
         .ecg-entrance h3 {
-            color: var(--pink);
+            color: var(--black);
             font-size: 1.3rem;
             margin-bottom: 8px;
+            font-weight: 900;
+            text-transform: uppercase;
         }
         .ecg-entrance p {
             color: var(--text-light);
             font-size: 0.9rem;
+            font-weight: 700;
         }
         .ecg-chart-area {
             display: none;
             margin-top: 20px;
-            background: #fff;
-            border-radius: 20px;
+            background: var(--white);
+            border-radius: 24px;
             padding: 24px;
-            box-shadow: 0 4px 20px rgba(243, 139, 182, 0.1);
+            border: 4px solid var(--black);
+            box-shadow: 6px 6px 0 var(--black);
         }
         .ecg-chart-area.show {
             display: block;
@@ -971,49 +1052,54 @@
         .ecg-crush-select {
             width: 100%;
             padding: 12px 16px;
-            border: 2px solid var(--pink-light);
+            border: 3px solid var(--black);
             border-radius: 16px;
-            background: #fff;
+            background: var(--white);
             color: var(--text);
             font-size: 1rem;
-            font-weight: 600;
+            font-weight: 900;
             font-family: inherit;
             outline: none;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.15s;
             margin-bottom: 16px;
             appearance: none;
             -webkit-appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23F38BB6' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%231a1a1a' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
             background-position: right 12px center;
             padding-right: 40px;
+            box-shadow: 3px 3px 0 var(--black);
         }
         .ecg-crush-select:focus {
-            border-color: var(--pink);
-            box-shadow: 0 0 0 3px rgba(243, 139, 182, 0.15);
+            border-color: var(--red);
+            box-shadow: 4px 4px 0 var(--black);
         }
-        .ecg-crush-select option {
-            font-weight: 500;
-        }
+        .ecg-crush-select option { font-weight: 700; }
+        #trendCrushSelect { margin-bottom: 96px; }
         .ecg-toggle {
             padding: 8px 20px;
-            border: 2px solid var(--pink-light);
+            border: 3px solid var(--black);
             border-radius: 50px;
-            background: #fff;
-            color: var(--pink);
-            font-weight: 600;
+            background: var(--white);
+            color: var(--black);
+            font-weight: 900;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.15s;
             font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 3px 3px 0 var(--black);
         }
         .ecg-toggle:hover {
-            background: var(--pink-pale);
+            background: var(--yellow-light);
+            transform: translate(-2px, -2px);
+            box-shadow: 5px 5px 0 var(--black);
         }
         .ecg-toggle.active {
-            background: linear-gradient(135deg, var(--pink), var(--pink-light));
-            color: #fff;
-            border-color: var(--pink);
+            background: var(--red);
+            color: var(--white);
+            border-color: var(--black);
         }
         .ecg-empty {
             text-align: center;
@@ -1027,13 +1113,16 @@
             animation: heartbeat 2s ease-in-out infinite;
         }
         .ecg-empty h4 {
-            color: var(--pink);
+            color: var(--black);
             font-size: 1.2rem;
             margin-bottom: 8px;
+            font-weight: 900;
+            text-transform: uppercase;
         }
         .ecg-empty p {
             font-size: 0.9rem;
             line-height: 1.6;
+            font-weight: 700;
         }
         .ecg-stats {
             display: flex;
@@ -1041,19 +1130,20 @@
             gap: 24px;
             margin-top: 16px;
             padding-top: 16px;
-            border-top: 1px solid var(--cream-dark);
+            border-top: 3px solid var(--black);
         }
-        .ecg-stat {
-            text-align: center;
-        }
+        .ecg-stat { text-align: center; }
         .ecg-stat .number {
+            font-family: 'Rubik Mono One', sans-serif;
             font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--green-dark);
+            font-weight: 400;
+            color: var(--black);
         }
         .ecg-stat .label {
             font-size: 0.8rem;
             color: var(--text-light);
+            font-weight: 700;
+            text-transform: uppercase;
         }
         .ecg-chart-container {
             position: relative;
@@ -1067,1186 +1157,11 @@
             .heart-score .number { font-size: 3.5rem; }
             .dimensions { grid-template-columns: repeat(2, 1fr); }
         }
-    </style>
-</head>
-<body>
-    <!-- 用户状态栏 -->
-    <div class="user-bar" id="userBar">
-        <button class="user-btn btn-login" onclick="showLoginModal()">❤️ 登录 / 注册</button>
-    </div>
-
-    <div class="top-bar"></div>
-
-    <header>
-        <h1><span>❤</span> 心动解码器</h1>
-        <p>Crush Meter · 上传聊天记录，AI 解读 ta 的心动程度</p>
-    </header>
-
-    <div class="wave-divider"></div>
-
-    <div class="pink-section">
-        <div class="container">
-            <!-- 输入区域 -->
-            <div class="card">
-                <div class="input-group">
-                    <label>ta 的名字</label>
-                    <input type="text" id="crushName" placeholder="例如：小美" value="">
-                </div>
-                <div class="input-group">
-                    <label>聊天记录（直接粘贴即可）</label>
-                    <textarea id="chatText" placeholder="例如：
-你：在干什么
-小美：刚下班，累死了哈哈哈
-你：辛苦了，吃了吗
-小美：还没呢，不知道吃什么，你推荐一下？
-..."></textarea>
-                </div>
-
-                <!-- 图片上传 -->
-                <div class="input-group">
-                    <label>📸 上传聊天截图（支持 OCR）</label>
-                    <div class="upload-count">
-                        已上传 <span class="count-num" id="uploadCount">0</span> / 10 张
-                    </div>
-                    <div class="upload-area" id="uploadArea" onclick="document.getElementById('imageInput').click()"
-                         ondragover="event.preventDefault(); this.classList.add('dragover')"
-                         ondragleave="this.classList.remove('dragover')"
-                         ondrop="handleDrop(event)">
-                        <span class="upload-icon">📷</span>
-                        <div class="upload-text">点击或拖拽上传图片</div>
-                        <div class="upload-hint">支持 JPG / PNG / WEBP ，单张不超过 5MB</div>
-                        <div class="upload-hint" style="color: #E91E63; font-size: 12px; margin-top: 4px;">
-                            ✨ 微信聊天截图自动识别：左侧消息标注 [对方]，右侧标注 [自己]
-                        </div>
-                    </div>
-                    <input type="file" id="imageInput" accept="image/jpeg,image/png,image/webp" multiple onchange="handleImageSelect(event)">
-
-                    <div class="image-grid" id="imageGrid"></div>
-
-                    <!-- OCR 编辑区 -->
-                    <div class="ocr-edit-section" id="ocrEditSection" style="display:none;">
-                        <div class="section-title">📝 编辑 OCR 结果</div>
-                        <textarea class="ocr-textarea" id="ocrEditTextarea" placeholder="OCR 识别的文字会显示在这里，可以手动修正..."></textarea>
-                        <div class="ocr-actions">
-                            <button class="btn-small btn-save" onclick="saveOcrEdit()">保存修改</button>
-                            <button class="btn-small btn-cancel" onclick="cancelOcrEdit()">取消</button>
-                        </div>
-                    </div>
-                </div>
-                <button class="btn" id="analyzeBtn" onclick="analyze()">🔮 开始解码</button>
-                <div id="loadingArea"></div>
-                <div id="errorArea"></div>
-            </div>
+    </style    <!-- ticker -->
+    <div class="ticker">
+        <div class="ticker-inner">
+            HEART RATE ⚡ CRUSH INDEX ⚡ CHAT FREQ ⚡ REPLY SPEED ⚡ SHARE DESIRE ⚡ EMOTION WAVE ⚡ HEART RATE ⚡ CRUSH INDEX ⚡ CHAT FREQ ⚡ REPLY SPEED ⚡ SHARE DESIRE ⚡ EMOTION WAVE
         </div>
     </div>
 
-    <div class="wave-divider reverse"></div>
-
-    <div class="container">
-        <!-- 结果区域 -->
-        <div class="card pink-card result" id="resultArea">
-            <div class="heart-score">
-                <div class="number" id="heartRate">--</div>
-                <div class="level" id="level">--</div>
-            </div>
-
-            <div class="section-title">📊 五维度分析</div>
-            <div class="dimensions-radar" id="dimensionsRadar">
-                <div class="radar-chart-wrap">
-                    <canvas id="radarChart"></canvas>
-                </div>
-                <div class="radar-details" id="radarDetails"></div>
-            </div>
-
-            <div class="section-title">💡 关键信号</div>
-            <div class="signals" id="signals"></div>
-
-            <div class="section-title">🌱 行动建议</div>
-            <div class="advice-box" id="advice"></div>
-
-            <div id="riskArea" style="display:none;">
-                <div class="risk-box" id="riskWarning"></div>
-            </div>
-
-            <!-- 注册提示（未登录时显示） -->
-            <div class="register-hint" id="registerHint" style="display:none;">
-                <p>🌸 注册账号，永久保存你的心动档案</p>
-                <button class="hint-btn" onclick="showRegisterModal()">❤️ 保存心动档案</button>
-            </div>
-        </div>
-
-        <!-- Crush心电图 -->
-        <div class="card" id="ecgCard" style="display:none;">
-            <div class="section-title">💓 Crush 心电图</div>
-            <select class="ecg-crush-select" id="ecgCrushSelect" onchange="onCrushSelectChange(this.value)">
-                <option value="">选择查看对象...</option>
-            </select>
-            <div class="ecg-controls">
-                <button class="ecg-toggle active" onclick="switchEcgGranularity('day')" id="btnDay">按天</button>
-                <button class="ecg-toggle" onclick="switchEcgGranularity('week')" id="btnWeek">按周</button>
-            </div>
-            <div id="ecgEmptyState" class="ecg-empty" style="display:none;">
-                <span class="emoji">💓</span>
-                <h4>暂无数据</h4>
-                <p>多分析几次就能看到心跳曲线啦~<br>每天分析一次，就能追踪关系变化趋势！</p>
-            </div>
-            <div id="ecgChartContainer" class="ecg-chart-container" style="display:none;">
-                <canvas id="ecgCanvas"></canvas>
-            </div>
-            <div class="ecg-stats" id="ecgStats" style="display:none;">
-                <div class="ecg-stat">
-                    <div class="number" id="ecgAvg">--</div>
-                    <div class="label">平均心动指数</div>
-                </div>
-                <div class="ecg-stat">
-                    <div class="number" id="ecgDays">--</div>
-                    <div class="label">统计天数</div>
-                </div>
-                <div class="ecg-stat">
-                    <div class="number" id="ecgMax">--</div>
-                    <div class="label">最高心动指数</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 分析历史 + 迷你柱状图 并排 -->
-        <div class="cards-row">
-            <div class="card card-half">
-                <div class="section-title">📜 分析历史</div>
-                <div class="history-list" id="historyList">
-                    <div class="empty-state">暂无记录，快来解码第一个 crush 吧~ 🌸</div>
-                </div>
-            </div>
-            <div class="card card-half">
-                <div class="section-title">📈 近5次心动对比</div>
-                <select class="ecg-crush-select" id="trendCrushSelect" onchange="onTrendCrushChange(this.value)">
-                    <option value="">选择查看对象...</option>
-                </select>
-                <div class="trend-chart-container" id="trendChartContainer" style="display:none;">
-                    <canvas id="trendChart"></canvas>
-                </div>
-                <div class="trend-empty" id="trendEmpty" style="display:none;">
-                    <span class="emoji">🌱</span>
-                    再分析几次就能看到对比啦~
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <footer>
-        <span class="leaf">🌿</span> 心动解码器 Crush Meter <span class="leaf">🌸</span>
-    </footer>
-
-    <!-- 登录/注册弹窗 -->
-    <div class="modal-overlay" id="authModal">
-        <div class="modal">
-            <button class="modal-close" onclick="closeAuthModal()">&times;</button>
-            <div class="modal-header">
-                <h3 id="modalTitle">欢迎回来~</h3>
-                <p id="modalSubtitle">登录你的心动档案</p>
-            </div>
-            <div class="modal-body">
-                <input type="text" class="modal-input" id="authUsername" placeholder="用户名" maxlength="20">
-                <input type="password" class="modal-input" id="authPassword" placeholder="密码">
-                <input type="password" class="modal-input" id="authPassword2" placeholder="确认密码" style="display:none;">
-                <button class="modal-btn modal-btn-primary" id="authBtn" onclick="handleAuth()">🔑 登录</button>
-                <div class="modal-footer">
-                    <span id="modalFooterText">还没有账号？</span>
-                    <a onclick="toggleAuthMode()" id="modalToggle">注册一个</a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // ===== 认证状态 =====
-        let authMode = 'login'; // 'login' or 'register'
-
-        function getAuthHeaders() {
-            const token = localStorage.getItem('heart_token');
-            if (token) {
-                return { 'Authorization': 'Bearer ' + token };
-            }
-            let guestUid = localStorage.getItem('heart_guest_uid');
-            if (!guestUid) {
-                guestUid = 'guest_' + Math.random().toString(36).substring(2, 15);
-                localStorage.setItem('heart_guest_uid', guestUid);
-            }
-            return { 'X-Guest-UID': guestUid };
-        }
-
-        async function initAuth() {
-            const token = localStorage.getItem('heart_token');
-            if (token) {
-                try {
-                    const res = await fetch('/me', { headers: { 'Authorization': 'Bearer ' + token } });
-                    const data = await res.json();
-                    if (data.user) {
-                        updateUserBar(data.user.username);
-                        return;
-                    }
-                } catch (e) {
-                    console.error('initAuth error', e);
-                }
-                localStorage.removeItem('heart_token');
-            }
-            updateUserBar(null);
-        }
-
-        function updateUserBar(username) {
-            const bar = document.getElementById('userBar');
-            if (username) {
-                bar.innerHTML = `
-                    <span class="user-name">👤 ${username} 的心动档案</span>
-                    <button class="user-btn btn-logout" onclick="logout()">退出</button>
-                `;
-            } else {
-                bar.innerHTML = `
-                    <button class="user-btn btn-login" onclick="showLoginModal()">❤️ 登录 / 注册</button>
-                `;
-            }
-        }
-
-        function showLoginModal() {
-            authMode = 'login';
-            document.getElementById('authModal').classList.add('show');
-            document.getElementById('modalTitle').textContent = '欢迎回来~';
-            document.getElementById('modalSubtitle').textContent = '登录你的心动档案';
-            document.getElementById('authBtn').textContent = '🔑 登录';
-            document.getElementById('authPassword2').style.display = 'none';
-            document.getElementById('modalFooterText').textContent = '还没有账号？';
-            document.getElementById('modalToggle').textContent = '注册一个';
-        }
-
-        function showRegisterModal() {
-            authMode = 'register';
-            document.getElementById('authModal').classList.add('show');
-            document.getElementById('modalTitle').textContent = '保存心动档案~';
-            document.getElementById('modalSubtitle').textContent = '取个名字，让心动有迹可寻';
-            document.getElementById('authBtn').textContent = '💕 创建心动档案';
-            document.getElementById('authPassword2').style.display = 'block';
-            document.getElementById('modalFooterText').textContent = '已有账号？';
-            document.getElementById('modalToggle').textContent = '直接登录';
-        }
-
-        function closeAuthModal() {
-            document.getElementById('authModal').classList.remove('show');
-            document.getElementById('authUsername').value = '';
-            document.getElementById('authPassword').value = '';
-            document.getElementById('authPassword2').value = '';
-        }
-
-        function toggleAuthMode() {
-            if (authMode === 'login') {
-                showRegisterModal();
-            } else {
-                showLoginModal();
-            }
-        }
-
-        async function handleAuth() {
-            const username = document.getElementById('authUsername').value.trim();
-            const password = document.getElementById('authPassword').value;
-            const password2 = document.getElementById('authPassword2').value;
-            const btn = document.getElementById('authBtn');
-
-            if (!username || !password) {
-                alert('请填写用户名和密码');
-                return;
-            }
-
-            btn.disabled = true;
-
-            try {
-                if (authMode === 'register') {
-                    if (password !== password2) {
-                        alert('两次输入的密码不一致');
-                        btn.disabled = false;
-                        return;
-                    }
-                    const guestUid = localStorage.getItem('heart_guest_uid');
-                    const formData = new FormData();
-                    formData.append('username', username);
-                    formData.append('password', password);
-                    if (guestUid) formData.append('guest_uid', guestUid);
-
-                    const res = await fetch('/register', { method: 'POST', body: formData });
-                    const data = await res.json();
-
-                    if (data.error) {
-                        alert(data.error);
-                        btn.disabled = false;
-                        return;
-                    }
-
-                    localStorage.setItem('heart_token', data.token);
-                    localStorage.removeItem('heart_guest_uid');
-                    updateUserBar(data.user.username);
-                    closeAuthModal();
-                    loadHistory();
-                    alert(`🎉 注册成功！已迁移 ${data.migrated} 条心动记录`);
-                } else {
-                    const formData = new FormData();
-                    formData.append('username', username);
-                    formData.append('password', password);
-
-                    const res = await fetch('/login', { method: 'POST', body: formData });
-                    const data = await res.json();
-
-                    if (data.error) {
-                        alert(data.error);
-                        btn.disabled = false;
-                        return;
-                    }
-
-                    localStorage.setItem('heart_token', data.token);
-                    localStorage.removeItem('heart_guest_uid');
-                    updateUserBar(data.user.username);
-                    closeAuthModal();
-                    loadHistory();
-                }
-            } catch (err) {
-                alert('请求失败: ' + err.message);
-            } finally {
-                btn.disabled = false;
-            }
-        }
-
-        function logout() {
-            localStorage.removeItem('heart_token');
-            localStorage.removeItem('heart_guest_uid');
-            updateUserBar(null);
-            loadHistory();
-        }
-
-        // 页面加载时初始化
-        initAuth();
-        loadHistory();
-
-        async function analyze() {
-            const crushName = document.getElementById('crushName').value.trim();
-            let chatText = document.getElementById('chatText').value.trim();
-            const btn = document.getElementById('analyzeBtn');
-            const loading = document.getElementById('loadingArea');
-            const errorArea = document.getElementById('errorArea');
-            const resultArea = document.getElementById('resultArea');
-
-            // 如果没有手动输入但有 OCR 结果，自动使用 OCR 文本
-            if (!chatText) {
-                const ocrText = await getMergedOcrText();
-                if (ocrText) {
-                    chatText = ocrText;
-                    document.getElementById('chatText').value = ocrText;
-                }
-            }
-
-            if (!crushName || !chatText) {
-                errorArea.innerHTML = '<div class="error-box">请填写 ta 的名字和聊天记录 🌸</div>';
-                return;
-            }
-
-            btn.disabled = true;
-            loading.innerHTML = '<div class="loading">正在解码心动信号...</div>';
-            errorArea.innerHTML = '';
-            resultArea.classList.remove('show');
-
-            try {
-                const formData = new FormData();
-                formData.append('crush_name', crushName);
-                formData.append('chat_text', chatText);
-
-                // 收集所有图片的 OCR 文本
-                const ocrTexts = [];
-                document.querySelectorAll('.image-item').forEach(item => {
-                    const id = item.dataset.id;
-                    const status = item.querySelector('.img-status');
-                    if (status && status.classList.contains('done')) {
-                        // 从后端获取 OCR 文本（已经在 images 数组中）
-                        // 这里用一个简单方法：直接传空，让后端去查询
-                    }
-                });
-
-                // 更好的方法：直接传入合并的 OCR 文本
-                const mergedOcr = await getMergedOcrText();
-                if (mergedOcr) {
-                    formData.append('ocr_text', mergedOcr);
-                }
-
-                const res = await fetch('/analyze', {
-                    method: 'POST',
-                    body: formData,
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-
-                if (data.error) {
-                    errorArea.innerHTML = `<div class="error-box">分析失败：${data.error}</div>`;
-                    return;
-                }
-
-                showResult(data);
-                loadHistory();
-
-            } catch (err) {
-                errorArea.innerHTML = `<div class="error-box">请求失败：${err.message}</div>`;
-            } finally {
-                btn.disabled = false;
-                loading.innerHTML = '';
-            }
-        }
-
-        function showResult(data) {
-            document.getElementById('heartRate').textContent = data.heart_rate;
-            document.getElementById('level').textContent = data.level;
-
-            // 五维度
-            const dimMap = {
-                initiative: '主动性',
-                response_quality: '回应质量',
-                emotional_temp: '情绪温度',
-                time_signals: '时间信号',
-                exclusivity: '专属感'
-            };
-            const dimKeys = Object.keys(dimMap);
-            const dimLabels = dimKeys.map(k => dimMap[k]);
-            const dimScores = dimKeys.map(k => (data.dimensions[k] || { score: 0 }).score);
-            const dimEvidences = dimKeys.map(k => (data.dimensions[k] || { evidence: '' }).evidence);
-
-            // 渲染雷达图
-            renderRadarChart(dimLabels, dimScores);
-
-            // 渲染详情列表
-            const radarDetails = document.getElementById('radarDetails');
-            radarDetails.innerHTML = '';
-            for (let i = 0; i < dimKeys.length; i++) {
-                const key = dimKeys[i];
-                const label = dimLabels[i];
-                const score = dimScores[i];
-                const evidence = dimEvidences[i];
-                const div = document.createElement('div');
-                div.className = 'dim-item';
-                div.title = evidence;
-                div.innerHTML = `
-                    <div class="dim-name">${label}</div>
-                    <div class="dim-score">${score}</div>
-                    <div class="dim-bar"><div class="dim-bar-fill" style="width:${score}%"></div></div>
-                `;
-                radarDetails.appendChild(div);
-            }
-
-            // 关键信号
-            const sigContainer = document.getElementById('signals');
-            sigContainer.innerHTML = '';
-            (data.key_signals || []).forEach(s => {
-                const div = document.createElement('div');
-                div.className = 'signal-item';
-                div.textContent = s;
-                sigContainer.appendChild(div);
-            });
-
-            // 建议
-            document.getElementById('advice').textContent = data.advice || '暂无建议';
-
-            // 风险预警
-            const riskArea = document.getElementById('riskArea');
-            if (data.risk_warning) {
-                document.getElementById('riskWarning').textContent = '⚠️ ' + data.risk_warning;
-                riskArea.style.display = 'block';
-            } else {
-                riskArea.style.display = 'none';
-            }
-
-            document.getElementById('resultArea').classList.add('show');
-            // 更新迷你柱状图
-            currentTrendCrush = data.crush_name;
-            updateTrendSelectValue(data.crush_name);
-            loadTrend(data.crush_name);
-            // 更新心电图
-            currentEcgCrush = data.crush_name;
-            loadTimeline(data.crush_name);
-            // 未登录时显示注册提示
-            const token = localStorage.getItem('heart_token');
-            document.getElementById('registerHint').style.display = token ? 'none' : 'block';
-            // 滚动到结果
-            setTimeout(() => {
-                resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 100);
-        }
-
-        async function loadHistory() {
-            try {
-                const res = await fetch('/history?limit=20', { headers: getAuthHeaders() });
-                const data = await res.json();
-                const container = document.getElementById('historyList');
-
-                if (!data || data.length === 0) {
-                    container.innerHTML = '<div class="empty-state">暂无记录，快来解码第一个 crush 吧~ 🌸</div>';
-                    return;
-                }
-
-                container.innerHTML = '';
-                // 收集所有唯一的 crush，用于下拉框
-                const uniqueCrushes = [...new Set(data.map(item => item.crush_name))];
-                updateEcgCrushSelect(uniqueCrushes);
-                updateTrendCrushSelect(uniqueCrushes);
-
-                data.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'history-item';
-                    const date = new Date(item.created_at).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                    div.innerHTML = `
-                        <div>
-                            <div class="h-name">${item.crush_name}</div>
-                            <div class="h-date">${date} · ${item.level}</div>
-                        </div>
-                        <div class="h-score">${item.heart_rate}</div>
-                    `;
-                    div.onclick = () => {
-                        currentEcgCrush = item.crush_name;
-                        currentTrendCrush = item.crush_name;
-                        updateEcgSelectValue(item.crush_name);
-                        updateTrendSelectValue(item.crush_name);
-                        loadTimeline(item.crush_name);
-                        loadTrend(item.crush_name);
-                        showResult(item);
-                    };
-                    container.appendChild(div);
-                });
-                // 页面加载时，自动显示最近分析的 crush
-                if (!currentEcgCrush && data.length > 0) {
-                    currentEcgCrush = data[0].crush_name;
-                    updateEcgSelectValue(data[0].crush_name);
-                    loadTimeline(data[0].crush_name);
-                }
-                if (!currentTrendCrush && data.length > 0) {
-                    currentTrendCrush = data[0].crush_name;
-                    updateTrendSelectValue(data[0].crush_name);
-                    loadTrend(data[0].crush_name);
-                }
-            } catch (err) {
-                console.error('loadHistory error', err);
-            }
-        }
-
-        let trendChartInstance = null;
-        let currentTrendCrush = '';
-
-        async function loadTrend(crushName) {
-            const chartContainer = document.getElementById('trendChartContainer');
-            const emptyState = document.getElementById('trendEmpty');
-
-            try {
-                const res = await fetch(`/trend?crush_name=${encodeURIComponent(crushName)}`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-
-                if (!data || data.length === 0) {
-                    chartContainer.style.display = 'none';
-                    emptyState.style.display = 'block';
-                    return;
-                }
-
-                chartContainer.style.display = 'block';
-                emptyState.style.display = 'none';
-                renderTrend(data);
-            } catch (err) {
-                console.error('loadTrend error', err);
-                chartContainer.style.display = 'none';
-                emptyState.style.display = 'block';
-            }
-        }
-
-        let radarChartInstance = null;
-
-        function renderRadarChart(labels, scores) {
-            const ctx = document.getElementById('radarChart').getContext('2d');
-
-            if (radarChartInstance) {
-                radarChartInstance.destroy();
-            }
-
-            radarChartInstance = new Chart(ctx, {
-                type: 'radar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: '心动指数',
-                        data: scores,
-                        borderColor: '#F38BB6',
-                        backgroundColor: 'rgba(243, 139, 182, 0.25)',
-                        borderWidth: 2,
-                        pointBackgroundColor: '#7DAE3E',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        r: {
-                            min: 0,
-                            max: 100,
-                            ticks: {
-                                display: false,
-                                stepSize: 20
-                            },
-                            grid: {
-                                color: 'rgba(0,0,0,0.06)'
-                            },
-                            pointLabels: {
-                                color: '#666',
-                                font: { size: 11, weight: '600' }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function renderTrend(data) {
-            const ctx = document.getElementById('trendChart').getContext('2d');
-
-            if (trendChartInstance) {
-                trendChartInstance.destroy();
-            }
-
-            const labels = data.map((d, i) => {
-                const date = new Date(d.created_at);
-                return `${date.getMonth() + 1}/${date.getDate()}`;
-            });
-            const scores = data.map(d => d.heart_rate);
-
-            // 根据分数设置柱子颜色
-            const barColors = scores.map(score => {
-                if (score >= 80) return '#F38BB6';
-                if (score >= 60) return '#FDC5DA';
-                if (score >= 40) return '#B8D982';
-                return '#EDE9E0';
-            });
-
-            trendChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: '心动指数',
-                        data: scores,
-                        backgroundColor: barColors,
-                        borderRadius: 6,
-                        borderSkipped: false,
-                        barPercentage: 0.25,
-                        categoryPercentage: 0.9
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: '#5A8221',
-                            titleColor: '#fff',
-                            bodyColor: '#fff',
-                            borderColor: '#7DAE3E',
-                            borderWidth: 1,
-                            cornerRadius: 8,
-                            displayColors: false,
-                            callbacks: {
-                                title: function(context) {
-                                    const idx = context[0].dataIndex;
-                                    return data[idx].level;
-                                },
-                                label: function(context) {
-                                    return `心动指数: ${context.parsed.y}`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            min: 0,
-                            max: 100,
-                            grid: {
-                                color: 'rgba(0,0,0,0.03)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#bbb',
-                                font: { size: 9 },
-                                maxTicksLimit: 4
-                            }
-                        },
-                        x: {
-                            grid: { display: false, drawBorder: false },
-                            ticks: {
-                                color: '#999',
-                                font: { size: 9 }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function onTrendCrushChange(name) {
-            if (!name) return;
-            currentTrendCrush = name;
-            loadTrend(name);
-        }
-
-        function updateTrendCrushSelect(crushes) {
-            const select = document.getElementById('trendCrushSelect');
-            const currentVal = select.value;
-            select.innerHTML = '<option value="">选择查看对象...</option>';
-            crushes.forEach(name => {
-                const option = document.createElement('option');
-                option.value = name;
-                option.textContent = name;
-                select.appendChild(option);
-            });
-            if (currentVal && crushes.includes(currentVal)) {
-                select.value = currentVal;
-            }
-        }
-
-        function updateTrendSelectValue(name) {
-            const select = document.getElementById('trendCrushSelect');
-            select.value = name;
-        }
-
-        // ===== 图片 OCR 相关 =====
-        let editingImageId = null;
-
-        async function handleImageSelect(event) {
-            const files = Array.from(event.target.files);
-            if (files.length === 0) return;
-            await uploadImages(files);
-            event.target.value = '';
-        }
-
-        async function handleDrop(event) {
-            event.preventDefault();
-            document.getElementById('uploadArea').classList.remove('dragover');
-            const files = Array.from(event.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-            if (files.length === 0) return;
-            await uploadImages(files);
-        }
-
-        async function uploadImages(files) {
-            const formData = new FormData();
-            for (const file of files) {
-                formData.append('files', file);
-            }
-
-            try {
-                const res = await fetch('/upload_images', {
-                    method: 'POST',
-                    body: formData,
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-
-                if (data.error) {
-                    alert(data.error);
-                    return;
-                }
-
-                // 自动对每张图片执行 OCR
-                for (const img of data.images) {
-                    doOcr(img.id);
-                }
-
-        
-        async function getMergedOcrText() {
-            try {
-                const res = await fetch('/images', { headers: getAuthHeaders() });
-                const images = await res.json();
-                const texts = images
-                    .filter(img => img.status === 'done' && img.ocr_text)
-                    .map(img => img.ocr_text)
-                    .filter(t => t.trim());
-                return texts.join('\n\n');
-            } catch (err) {
-                console.error('getMergedOcrText error', err);
-                return '';
-            }
-        }
-        loadImages();
-            } catch (err) {
-                alert('上传失败: ' + err.message);
-            }
-        }
-
-        async function loadImages() {
-            try {
-                const res = await fetch('/images', { headers: getAuthHeaders() });
-                const images = await res.json();
-                renderImageGrid(images);
-                document.getElementById('uploadCount').textContent = images.length;
-            } catch (err) {
-                console.error('loadImages error', err);
-            }
-        }
-
-        function renderImageGrid(images) {
-            const grid = document.getElementById('imageGrid');
-            if (images.length === 0) {
-                grid.innerHTML = '';
-                return;
-            }
-
-            grid.innerHTML = images.map(img => `
-                <div class="image-item" data-id="${img.id}">
-                    <span class="img-status ${img.status}">${statusLabel(img.status)}</span>
-                    <img class="img-thumb" src="${img.url}" alt="${img.original_name}" loading="lazy"
-                         onclick="editOcr(${img.id}, \`${escapeHtml(img.ocr_text || '')}\`)" style="cursor:pointer;">
-                    <div class="img-name">${escapeHtml(img.original_name)}</div>
-                    <div class="img-actions">
-                        <button class="img-btn ocr" onclick="doOcr(${img.id})" ${img.status === 'processing' ? 'disabled' : ''}>🔍 识别</button>
-                        <button class="img-btn ocr" onclick="editOcr(${img.id}, \`${escapeHtml(img.ocr_text || '')}\`)" style="background:#E3F2FD;color:#1976D2;">📝 编辑</button>
-                        <button class="img-btn delete" onclick="deleteImage(${img.id})">🗑️ 删除</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function statusLabel(status) {
-            const map = { pending: '待识别', processing: '识别中', done: '已完成', error: '失败' };
-            return map[status] || status;
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        async function doOcr(imageId) {
-            const item = document.querySelector(`.image-item[data-id="${imageId}"]`);
-            if (item) {
-                const status = item.querySelector('.img-status');
-                status.textContent = '识别中';
-                status.className = 'img-status processing';
-            }
-
-            try {
-                const res = await fetch(`/images/${imageId}/ocr`, {
-                    method: 'POST',
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-        
-        async function getMergedOcrText() {
-            try {
-                const res = await fetch('/images', { headers: getAuthHeaders() });
-                const images = await res.json();
-                const texts = images
-                    .filter(img => img.status === 'done' && img.ocr_text)
-                    .map(img => img.ocr_text)
-                    .filter(t => t.trim());
-                return texts.join('\n\n');
-            } catch (err) {
-                console.error('getMergedOcrText error', err);
-                return '';
-            }
-        }
-        loadImages();
-            } catch (err) {
-                console.error('OCR error', err);
-        
-        async function getMergedOcrText() {
-            try {
-                const res = await fetch('/images', { headers: getAuthHeaders() });
-                const images = await res.json();
-                const texts = images
-                    .filter(img => img.status === 'done' && img.ocr_text)
-                    .map(img => img.ocr_text)
-                    .filter(t => t.trim());
-                return texts.join('\n\n');
-            } catch (err) {
-                console.error('getMergedOcrText error', err);
-                return '';
-            }
-        }
-        loadImages();
-            }
-        }
-
-        async function deleteImage(imageId) {
-            if (!confirm('确定删除这张图片吗？')) return;
-
-            try {
-                const res = await fetch(`/images/${imageId}`, {
-                    method: 'DELETE',
-                    headers: getAuthHeaders()
-                });
-                if (res.ok) {
-            
-        async function getMergedOcrText() {
-            try {
-                const res = await fetch('/images', { headers: getAuthHeaders() });
-                const images = await res.json();
-                const texts = images
-                    .filter(img => img.status === 'done' && img.ocr_text)
-                    .map(img => img.ocr_text)
-                    .filter(t => t.trim());
-                return texts.join('\n\n');
-            } catch (err) {
-                console.error('getMergedOcrText error', err);
-                return '';
-            }
-        }
-        loadImages();
-                }
-            } catch (err) {
-                alert('删除失败: ' + err.message);
-            }
-        }
-
-        function editOcr(imageId, text) {
-            editingImageId = imageId;
-            document.getElementById('ocrEditTextarea').value = text;
-            document.getElementById('ocrEditSection').style.display = 'block';
-            document.getElementById('ocrEditSection').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        async function saveOcrEdit() {
-            if (!editingImageId) return;
-            const text = document.getElementById('ocrEditTextarea').value;
-
-            try {
-                const formData = new FormData();
-                formData.append('ocr_text', text);
-                const res = await fetch(`/images/${editingImageId}/ocr`, {
-                    method: 'PUT',
-                    body: formData,
-                    headers: getAuthHeaders()
-                });
-                if (res.ok) {
-                    document.getElementById('ocrEditSection').style.display = 'none';
-                    editingImageId = null;
-            
-        async function getMergedOcrText() {
-            try {
-                const res = await fetch('/images', { headers: getAuthHeaders() });
-                const images = await res.json();
-                const texts = images
-                    .filter(img => img.status === 'done' && img.ocr_text)
-                    .map(img => img.ocr_text)
-                    .filter(t => t.trim());
-                return texts.join('\n\n');
-            } catch (err) {
-                console.error('getMergedOcrText error', err);
-                return '';
-            }
-        }
-        loadImages();
-                }
-            } catch (err) {
-                alert('保存失败: ' + err.message);
-            }
-        }
-
-        function cancelOcrEdit() {
-            document.getElementById('ocrEditSection').style.display = 'none';
-            editingImageId = null;
-        }
-
-        // 页面加载时加载图片列表
-
-        async function getMergedOcrText() {
-            try {
-                const res = await fetch('/images', { headers: getAuthHeaders() });
-                const images = await res.json();
-                const texts = images
-                    .filter(img => img.status === 'done' && img.ocr_text)
-                    .map(img => img.ocr_text)
-                    .filter(t => t.trim());
-                return texts.join('\n\n');
-            } catch (err) {
-                console.error('getMergedOcrText error', err);
-                return '';
-            }
-        }
-        loadImages();
-
-        // ===== Crush心电图 =====
-        let ecgChart = null;
-        let currentEcgGranularity = 'day';
-        let currentEcgCrush = '';
-
-        function updateEcgCrushSelect(crushes) {
-            const select = document.getElementById('ecgCrushSelect');
-            const currentVal = select.value;
-            select.innerHTML = '<option value="">选择查看对象...</option>';
-            crushes.forEach(name => {
-                const option = document.createElement('option');
-                option.value = name;
-                option.textContent = name;
-                select.appendChild(option);
-            });
-            // 保持当前选中值（如果存在于列表中）
-            if (currentVal && crushes.includes(currentVal)) {
-                select.value = currentVal;
-            }
-        }
-
-        function updateEcgSelectValue(name) {
-            const select = document.getElementById('ecgCrushSelect');
-            select.value = name;
-        }
-
-        function onCrushSelectChange(name) {
-            if (!name) return;
-            currentEcgCrush = name;
-            loadTimeline(name);
-        }
-
-        function switchEcgGranularity(mode) {
-            currentEcgGranularity = mode;
-            document.querySelectorAll('.ecg-toggle').forEach(b => b.classList.remove('active'));
-            document.getElementById(mode === 'day' ? 'btnDay' : 'btnWeek').classList.add('active');
-            if (currentEcgCrush) {
-                loadTimeline(currentEcgCrush);
-            }
-        }
-
-        async function loadTimeline(crushName) {
-            if (!crushName) {
-                crushName = currentEcgCrush;
-            }
-            if (!crushName) {
-                document.getElementById('ecgCard').style.display = 'none';
-                return;
-            }
-            currentEcgCrush = crushName;
-
-            const headers = getAuthHeaders();
-            const url = `/timeline?crush_name=${encodeURIComponent(crushName)}&granularity=${currentEcgGranularity}`;
-
-            try {
-                const res = await fetch(url, { headers });
-                const data = await res.json();
-
-                if (data.error) {
-                    console.error(data.error);
-                    return;
-                }
-
-                const card = document.getElementById('ecgCard');
-                const emptyState = document.getElementById('ecgEmptyState');
-                const chartContainer = document.getElementById('ecgChartContainer');
-                const stats = document.getElementById('ecgStats');
-
-                card.style.display = 'block';
-
-                if (!data.data || data.data.length < 2) {
-                    emptyState.style.display = 'block';
-                    chartContainer.style.display = 'none';
-                    stats.style.display = 'none';
-                } else {
-                    emptyState.style.display = 'none';
-                    chartContainer.style.display = 'block';
-                    stats.style.display = 'flex';
-                    renderEcgChart(data.data);
-
-                    const rates = data.data.map(d => d.heart_rate);
-                    const avg = Math.round(rates.reduce((a, b) => a + b, 0) / rates.length);
-                    const max = Math.round(Math.max(...rates));
-                    document.getElementById('ecgAvg').textContent = avg;
-                    document.getElementById('ecgDays').textContent = data.total_points;
-                    document.getElementById('ecgMax').textContent = max;
-                }
-            } catch (e) {
-                console.error('Timeline error:', e);
-            }
-        }
-
-        function renderEcgChart(data) {
-            const ctx = document.getElementById('ecgCanvas').getContext('2d');
-
-            if (ecgChart) {
-                ecgChart.destroy();
-            }
-
-            const labels = data.map(d => d.period);
-            const values = data.map(d => d.heart_rate);
-
-            ecgChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: '心动指数',
-                        data: values,
-                        borderColor: '#F38BB6',
-                        backgroundColor: 'rgba(243, 139, 182, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        pointBackgroundColor: '#F38BB6',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 3,
-                        pointRadius: 6,
-                        pointHoverRadius: 10,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(243, 139, 182, 0.9)',
-                            titleColor: '#fff',
-                            bodyColor: '#fff',
-                            padding: 12,
-                            cornerRadius: 12,
-                            callbacks: {
-                                label: function(context) {
-                                    const idx = context.dataIndex;
-                                    const item = data[idx];
-                                    return [`心动指数: ${item.heart_rate}`, `阶段: ${item.level}`, `分析${item.count}次`];
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            min: 0,
-                            max: 100,
-                            grid: {
-                                color: 'rgba(243, 139, 182, 0.1)',
-                                borderDash: [5, 5]
-                            },
-                            ticks: {
-                                color: '#777',
-                                font: { size: 11 }
-                            }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: {
-                                color: '#777',
-                                font: { size: 11 },
-                                maxRotation: 45
-                            }
-                        }
-                    },
-                    animation: {
-                        duration: 1500,
-                        easing: 'easeInOutQuart'
-                    }
-                }
-            });
-        }
-    </script>
-</body>
-</html>
+>
