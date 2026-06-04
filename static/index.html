@@ -1816,7 +1816,7 @@
             document.getElementById('registerHint').style.display = token ? 'none' : 'block';
             // 滚动到结果
             setTimeout(() => {
-                resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 100);
         }
 
@@ -2656,8 +2656,11 @@
             const bgColors = [];
             const dimKeys = Object.keys(dimMap);
 
+            // 安全获取 dimensions，兼容历史记录格式
+            const dims = data.dimensions || {};
+
             dimKeys.forEach((key, idx) => {
-                const d = data.dimensions[key] || { score: 0, evidence: '暂无分析' };
+                const d = dims[key] || { score: 0, evidence: '\u6682\u65e0\u5206\u6790' };
                 labels.push(dimMap[key].label);
                 scores.push(d.score);
                 bgColors.push(d.score >= 70 ? 'var(--red)' : d.score >= 40 ? 'var(--yellow)' : 'var(--black)');
@@ -2666,7 +2669,7 @@
                 card.className = 'dim-item';
                 card.dataset.key = key;
                 card.dataset.score = d.score;
-                card.dataset.evidence = d.evidence;
+                card.dataset.evidence = d.evidence || '';
                 card.dataset.label = dimMap[key].label;
                 card.dataset.icon = dimMap[key].icon;
                 card.innerHTML = `
@@ -2677,15 +2680,13 @@
                 card.onclick = () => {
                     document.querySelectorAll('.radar-details .dim-item').forEach(el => el.classList.remove('active'));
                     card.classList.add('active');
-                    showRadarDetail(key, d.score, d.evidence, dimMap[key].label, dimMap[key].icon);
+                    showRadarDetail(key, d.score, d.evidence || '', dimMap[key].label, dimMap[key].icon);
                 };
                 detailsContainer.appendChild(card);
             });
 
             // 自动展开第一个
             if (dimKeys.length > 0) {
-                const firstKey = dimKeys[0];
-                const firstD = data.dimensions[firstKey] || { score: 0, evidence: '暂无分析' };
                 setTimeout(() => {
                     const firstCard = detailsContainer.querySelector('.dim-item');
                     if (firstCard) firstCard.click();
@@ -2705,7 +2706,7 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: '心动指标',
+                        label: '\u5fc3\u52a8\u6307\u6807',
                         data: scores,
                         backgroundColor: 'rgba(255, 59, 48, 0.25)',
                         borderColor: 'var(--red)',
