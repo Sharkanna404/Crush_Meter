@@ -2978,12 +2978,12 @@
 
 // ===== 期间特效系统（背景色 + 粒子 + 烟花）=====
         const STAGE_CONFIG = {
-            '陌生期':   { cls: 'stage-stranger',  emojis: ['\u2744\ufe0f'], count: 80,  speed: 2.8,  firework: false },
-            '朋友期':   { cls: 'stage-friend',    emojis: ['\ud83d\udcac', '\ud83d\ude0a', '\ud83c\udf1f', '\u270c\ufe0f'], count: 100, speed: 3.2,  firework: false },
-            '好感期':   { cls: 'stage-liking',    emojis: ['\u2728', '\u2b50', '\ud83c\udf1f', '\ud83d\udcab', '\ud83d\udc9b'], count: 120, speed: 3.6,  firework: false },
-            '暧昧期':   { cls: 'stage-ambiguous', emojis: ['\u2764\ufe0f', '\ud83d\udc95', '\ud83d\udc96', '\ud83d\udc97', '\ud83d\udc9e'], count: 140, speed: 4.2,  firework: false },
-            '热恋期':   { cls: 'stage-passion',   emojis: ['\u2764\ufe0f', '\ud83d\udd25', '\ud83d\udca5', '\u2728', '\ud83d\udc95'], count: 160, speed: 4.8,  firework: true  },
-            '深情期':   { cls: 'stage-deep',      emojis: ['\ud83d\udc96', '\u2728', '\ud83d\udc95', '\ud83d\udc97', '\ud83d\udc9d'], count: 180, speed: 5.4,  firework: true  }
+            '陌生期':   { cls: 'stage-stranger',  emojis: ['\u2744\ufe0f'], count: 150,  speed: 4.2,  firework: false },
+            '朋友期':   { cls: 'stage-friend',    emojis: ['\ud83d\udcac', '\ud83d\ude0a', '\ud83c\udf1f', '\u270c\ufe0f'], count: 190, speed: 4.8,  firework: false },
+            '好感期':   { cls: 'stage-liking',    emojis: ['\u2728', '\u2b50', '\ud83c\udf1f', '\ud83d\udcab', '\ud83d\udc9b'], count: 230, speed: 5.4,  firework: false },
+            '暗示期':   { cls: 'stage-ambiguous', emojis: ['\u2764\ufe0f', '\ud83d\udc95', '\ud83d\udc96', '\ud83d\udc97', '\ud83d\udc9e'], count: 270, speed: 6.4,  firework: false },
+            '热恋期':   { cls: 'stage-passion',   emojis: ['\u2764\ufe0f', '\ud83d\udd25', '\ud83d\udca5', '\u2728', '\ud83d\udc95'], count: 310, speed: 7.4,  firework: true  },
+            '深情期':   { cls: 'stage-deep',      emojis: ['\ud83d\udc96', '\u2728', '\ud83d\udc95', '\ud83d\udc97', '\ud83d\udc9d'], count: 350, speed: 8.4,  firework: true  }
         };
 
         const pCanvas = document.getElementById('particleCanvas');
@@ -3031,12 +3031,12 @@
                 this.size = sizeSlots[Math.floor(Math.random() * sizeSlots.length)];
                 // 下落速度：基础速度×随机系数，小粒子稍快，大粒子稍慢
                 this.speedY = cfg.speed * (0.85 + Math.random() * 0.5) * (26 / this.size);
-                // 水平摇摆很小，像真的下雨一样以垂直为主
-                this.speedX = (Math.random() - 0.5) * cfg.speed * 0.12;
+                // 下雨要垂直为主，水平摇摆极小，几乎直线下落
+                this.speedX = (Math.random() - 0.5) * cfg.speed * 0.04;
                 this.emoji = cfg.emojis[Math.floor(Math.random() * cfg.emojis.length)];
-                // 微弱的摆动，模拟风的效果
+                // 极弱的摇摆，模拟微风
                 this.swing = Math.random() * Math.PI * 2;
-                this.swingSpeed = 0.008 + Math.random() * 0.012;
+                this.swingSpeed = 0.005 + Math.random() * 0.008;
                 this.img = getEmojiCanvas(this.emoji, this.size);
                 this.halfW = this.img.width / 2;
                 this.halfH = this.img.height / 2;
@@ -3044,8 +3044,8 @@
             update(cfg) {
                 this.y += this.speedY;
                 this.swing += this.swingSpeed;
-                // 很小的水平摇摆，不会让粒子水平飘得太远
-                this.x += this.speedX + Math.sin(this.swing) * 0.3;
+                // 几乎垂直下落，水平偏移很小
+                this.x += this.speedX + Math.sin(this.swing) * 0.15;
                 // 如果超出屏幕底部，从上方重新生成（一直下不停）
                 if (this.y > pH + 80) {
                     this.reset(cfg);
