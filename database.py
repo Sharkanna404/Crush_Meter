@@ -44,6 +44,7 @@ def init_db():
             advice TEXT NOT NULL,
             risk_warning TEXT,
             created_at TEXT NOT NULL,
+            chat_date TEXT,
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     """)
@@ -72,7 +73,7 @@ def init_db():
 
 
 def _migrate_add_columns(conn):
-    """兼容旧数据库：如果 analyses 表缺少 user_id 或 guest_uid，则自动添加"""
+    """兼容旧数据库：如果 analyses 表缺少字段则自动添加，并回填旧数据"""
     cursor = conn.execute("PRAGMA table_info(analyses)")
     columns = {row[1] for row in cursor.fetchall()}
 
@@ -82,6 +83,11 @@ def _migrate_add_columns(conn):
         conn.execute("ALTER TABLE analyses ADD COLUMN guest_uid TEXT")
         # 给旧数据一个默认 guest_uid，便于后续迁移
         conn.execute("UPDATE analyses SET guest_uid = 'legacy' WHERE guest_uid IS NULL")
+    if "chat_date" not in columns:
+        conn.execute("ALTER TABLE analyses ADD COLUMN chat_date TEXT")
+        # 旧数据回填：chat_date 默认为 created_at 的日期部分
+        conn.execute("UPDATE analyses SET chat_date = date(created_at) WHERE chat_date IS NULL")
+        print("【DB Migrate】已添加 chat_date 字段并回填旧数据")
 
 
 def generate_guest_uid() -> str:
@@ -155,13 +161,14 @@ def save_analysis(
     advice: str,
     user_id: int = None,
     guest_uid: str = None,
-    risk_warning: str = ""
+    risk_warning: str = "",
+    chat_date: str = None
 ) -> int:
     conn = get_conn()
     cursor = conn.execute(
         """
-        INSERT INTO analyses (user_id, guest_uid, crush_name, chat_preview, heart_rate, level, dimensions, key_signals, advice, risk_warning, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO analyses (user_id, guest_uid, crush_name, chat_preview, heart_rate, level, dimensions, key_signals, advice, risk_warning, created_at, chat_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             user_id,
@@ -174,7 +181,8 @@ def save_analysis(
             json.dumps(key_signals, ensure_ascii=False),
             advice,
             risk_warning,
-            datetime.now().isoformat()
+            datetime.now().isoformat(),
+            chat_date
         )
     )
     conn.commit()
@@ -202,7 +210,8 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
         "key_signals": _safe_json_loads(row["key_signals"], []),
         "advice": row["advice"],
         "risk_warning": row["risk_warning"],
-        "created_at": row["created_at"]
+        "created_at": row["created_at"],
+        "chat_date": row["chat_date"]
     }
 
 
@@ -233,14 +242,16 @@ def get_trend(crush_name: str, user_id: int = None, guest_uid: str = None, limit
 
     if user_id:
         rows = conn.execute(
-            """SELECT id, heart_rate, level, created_at FROM analyses
-               WHERE crush_name = ? AND user_id = ? ORDER BY created_at DESC LIMIT ?""",
+            """SELECT id, heart_rate, level, chat_date, created_at FROM analyses
+               WHERE crush_name = ? AND user_id = ? AND chat_date IS NOT NULL
+               ORDER BY chat_date DESC LIMIT ?""",
             (crush_name, user_id, limit)
         ).fetchall()
     elif guest_uid:
         rows = conn.execute(
-            """SELECT id, heart_rate, level, created_at FROM analyses
-               WHERE crush_name = ? AND guest_uid = ? ORDER BY created_at DESC LIMIT ?""",
+            """SELECT id, heart_rate, level, chat_date, created_at FROM analyses
+               WHERE crush_name = ? AND guest_uid = ? AND chat_date IS NOT NULL
+               ORDER BY chat_date DESC LIMIT ?""",
             (crush_name, guest_uid, limit)
         ).fetchall()
     else:
@@ -250,7 +261,7 @@ def get_trend(crush_name: str, user_id: int = None, guest_uid: str = None, limit
     # 倒序返回，让时间轴从左到右递增
     rows = list(reversed(rows))
     return [
-        {"id": row["id"], "heart_rate": row["heart_rate"], "level": row["level"], "created_at": row["created_at"]}
+        {"id": row["id"], "heart_rate": row["heart_rate"], "level": row["level"], "chat_date": row["chat_date"], "created_at": row["created_at"]}
         for row in rows
     ]
 
@@ -413,19 +424,19 @@ def get_timeline(crush_name: str, user_id: int = None, guest_uid: str = None, gr
         rows = conn.execute(
             f"""
             SELECT
-                strftime('%Y-%W', created_at) as period,
+                strftime('%Y-%W', COALESCE(chat_date, date(created_at))) as period,
                 ROUND(AVG(heart_rate), 1) as avg_heart_rate,
                 COUNT(*) as analysis_count,
-                MAX(created_at) as last_date,
+                MAX(chat_date) as last_chat_date,
                 (SELECT level FROM analyses AS sub
                  WHERE sub.crush_name = a.crush_name
-                 AND strftime('%Y-%W', sub.created_at) = strftime('%Y-%W', a.created_at)
+                 AND strftime('%Y-%W', COALESCE(sub.chat_date, date(sub.created_at))) = strftime('%Y-%W', COALESCE(a.chat_date, date(a.created_at)))
                  AND {where_clause.replace('crush_name = ?', 'sub.crush_name = ?').replace('user_id = ?', 'sub.user_id = ?').replace('guest_uid = ?', 'sub.guest_uid = ?')}
-                 ORDER BY sub.created_at DESC LIMIT 1
+                 ORDER BY COALESCE(sub.chat_date, date(sub.created_at)) DESC LIMIT 1
                 ) as latest_level
             FROM analyses AS a
             WHERE {where_clause}
-            GROUP BY strftime('%Y-%W', created_at)
+            GROUP BY strftime('%Y-%W', COALESCE(chat_date, date(created_at)))
             ORDER BY period ASC
             """,
             params * 2  # 子查询和主查询都需要参数
@@ -435,19 +446,19 @@ def get_timeline(crush_name: str, user_id: int = None, guest_uid: str = None, gr
         rows = conn.execute(
             f"""
             SELECT
-                date(created_at) as period,
+                COALESCE(chat_date, date(created_at)) as period,
                 ROUND(AVG(heart_rate), 1) as avg_heart_rate,
                 COUNT(*) as analysis_count,
-                MAX(created_at) as last_date,
+                MAX(chat_date) as last_chat_date,
                 (SELECT level FROM analyses AS sub
                  WHERE sub.crush_name = a.crush_name
-                 AND date(sub.created_at) = date(a.created_at)
+                 AND COALESCE(sub.chat_date, date(sub.created_at)) = COALESCE(a.chat_date, date(a.created_at))
                  AND {where_clause.replace('crush_name = ?', 'sub.crush_name = ?').replace('user_id = ?', 'sub.user_id = ?').replace('guest_uid = ?', 'sub.guest_uid = ?')}
-                 ORDER BY sub.created_at DESC LIMIT 1
+                 ORDER BY COALESCE(sub.chat_date, date(sub.created_at)) DESC LIMIT 1
                 ) as latest_level
             FROM analyses AS a
             WHERE {where_clause}
-            GROUP BY date(created_at)
+            GROUP BY COALESCE(chat_date, date(created_at))
             ORDER BY period ASC
             """,
             params * 2
@@ -462,7 +473,7 @@ def get_timeline(crush_name: str, user_id: int = None, guest_uid: str = None, gr
             "heart_rate": row["avg_heart_rate"],
             "level": row["latest_level"] or "未知",
             "count": row["analysis_count"],
-            "last_date": row["last_date"]
+            "last_date": row["last_chat_date"]
         })
 
     return {

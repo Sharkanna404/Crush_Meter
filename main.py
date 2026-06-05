@@ -16,6 +16,7 @@ from pathlib import Path
 from fastapi import FastAPI, Form, Header, Request, File, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.middleware.gzip import GZipMiddleware
 from openai import OpenAI
 
 from prompt import build_analysis_messages
@@ -99,22 +100,63 @@ MOCK_MODE = os.getenv("HEART_DECODER_MOCK", "false").lower() == "true"
 def generate_mock_result(crush_name: str, chat_text: str) -> dict:
     """生成模拟分析结果（用于 API 不可用时的演示）"""
     import random
+    import re
+    from datetime import datetime, timedelta
+
+    # 尝试从聊天记录中提取日期
+    chat_date = None
+    date_patterns = [
+        r'(\d{4})[\-/](\d{1,2})[\-/](\d{1,2})',  # 2024-03-15, 2024/3/15
+        r'(\d{4})年(\d{1,2})月(\d{1,2})日',        # 2024年3月15日
+        r'(\d{1,2})月(\d{1,2})日',                  # 3月15日（年份用当前年）
+    ]
+    for pattern in date_patterns:
+        match = re.search(pattern, chat_text)
+        if match:
+            groups = match.groups()
+            try:
+                if len(groups) == 3:
+                    year, month, day = int(groups[0]), int(groups[1]), int(groups[2])
+                    # 处理两位数年份
+                    if year < 100:
+                        year += 2000
+                    chat_date = f"{year:04d}-{month:02d}-{day:02d}"
+                elif len(groups) == 2:
+                    month, day = int(groups[0]), int(groups[1])
+                    chat_date = f"{datetime.now().year:04d}-{month:02d}-{day:02d}"
+                break
+            except (ValueError, IndexError):
+                continue
+
+    # 处理"昨天"""今天""上周"等相对时间
+    if not chat_date:
+        today = datetime.now().date()
+        if '昨天' in chat_text or 'Yesterday' in chat_text:
+            chat_date = str(today - timedelta(days=1))
+        elif '前天' in chat_text:
+            chat_date = str(today - timedelta(days=2))
+        elif '今天' in chat_text or 'Today' in chat_text:
+            chat_date = str(today)
+        elif '上周' in chat_text:
+            chat_date = str(today - timedelta(days=7))
+
     heart_rate = random.randint(55, 85)
     levels = ["有好感", "暖味期", "热恋期"]
     level = levels[min(heart_rate // 30, 2)]
     return {
         "heart_rate": heart_rate,
         "level": level,
+        "chat_date": chat_date,
         "dimensions": {
             "initiative": {"score": random.randint(50, 90), "evidence": f"{crush_name} 主动发起聊天3次，包括分享今天的心情"},
             "response_quality": {"score": random.randint(55, 88), "evidence": f"平均回复字数60+，频繁使用表情包和语气词"},
-            "emotional_temp": {"score": random.randint(45, 82), "evidence": f"大量使用‘哈哈哈’和‘呢’，语气轻松亲切"},
+            "emotional_temp": {"score": random.randint(45, 82), "evidence": f"大量使用'哈哈哈'和'呢'，语气轻松亲切"},
             "time_signals": {"score": random.randint(40, 78), "evidence": f"有深夜聊天记录，回复速度较快"},
             "exclusivity": {"score": random.randint(50, 92), "evidence": f"分享了日常生活细节，展现出信任感"}
         },
         "key_signals": [
-            f"{crush_name} 在对话中使用了‘我们’，这是心理距离缩短的信号",
-            f"当你发‘困了’时，{crush_name} 立刻关心你的状态，关心程度超过普通朋友",
+            f"{crush_name} 在对话中使用了'我们'，这是心理距离缩短的信号",
+            f"当你发'困了'时，{crush_name} 立刻关心你的状态，关心程度超过普通朋友",
             f"{crush_name} 主动提出了下次见面的建议，这是典型的好感信号"
         ],
         "advice": f"当前心动值 {heart_rate} 分，{crush_name} 对你有明显好感。建议下周找个自然的机会约出来见面，比如一起吃饭或看电影。注意不要过早表白，先享受曖昧期，让关系自然发展。",
@@ -122,6 +164,9 @@ def generate_mock_result(crush_name: str, chat_text: str) -> dict:
     }
 
 app = FastAPI(title="心动解码器", version="0.1.0")
+
+# 启用 gzip 压缩，静态文件传输更快
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # 图片上传配置
 UPLOAD_DIR = Path(__file__).parent / "uploads"
@@ -791,6 +836,11 @@ async def analyze(
             result = json.loads(content)
 
         # 保存到数据库
+        # 如果 AI 没有返回有效 chat_date，用 created_at 的日期部分作为 fallback
+        chat_date = result.get("chat_date")
+        if not chat_date or not isinstance(chat_date, str) or len(chat_date) != 10:
+            chat_date = datetime.now().strftime("%Y-%m-%d")
+
         analysis_id = save_analysis(
             crush_name=crush_name,
             chat_preview=combined_text[:500],
@@ -801,9 +851,11 @@ async def analyze(
             advice=result.get("advice", ""),
             user_id=user_id,
             guest_uid=guest_uid,
-            risk_warning=result.get("risk_warning", "")
+            risk_warning=result.get("risk_warning", ""),
+            chat_date=chat_date
         )
         result["analysis_id"] = analysis_id
+        result["chat_date"] = chat_date
 
         return JSONResponse(result)
 
@@ -811,6 +863,9 @@ async def analyze(
         return JSONResponse({"error": f"AI 返回格式错误: {str(e)}", "raw": content}, status_code=500)
     except Exception as e:
         result = generate_mock_result(crush_name, combined_text)
+        chat_date = result.get("chat_date")
+        if not chat_date:
+            chat_date = datetime.now().strftime("%Y-%m-%d")
         analysis_id = save_analysis(
             crush_name=crush_name,
             chat_preview=combined_text[:500],
@@ -821,9 +876,11 @@ async def analyze(
             advice=result.get("advice", ""),
             user_id=user_id,
             guest_uid=guest_uid,
-            risk_warning=result.get("risk_warning", "")
+            risk_warning=result.get("risk_warning", ""),
+            chat_date=chat_date
         )
         result["analysis_id"] = analysis_id
+        result["chat_date"] = chat_date
         result["_note"] = f"API 暂时不可用，使用演示数据（原因: {str(e)}）"
         return JSONResponse(result)
 

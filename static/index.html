@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>心动解码器 | Crush Meter</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Rubik+Mono+One&family=Noto+Sans+SC:wght@400;700;900&display=swap');
+        @import url('https://fonts.loli.net/css2?family=Rubik+Mono+One&family=Noto+Sans+SC:wght@400;700;900&display=swap');
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -40,7 +40,8 @@
         }
         .ticker-inner {
             display: inline-block;
-            animation: ticker 20s linear infinite;
+            white-space: nowrap;
+            animation: ticker 25s linear infinite;
             font-weight: 700;
             font-size: 0.85rem;
             letter-spacing: 1px;
@@ -64,12 +65,17 @@
 
         header {
             text-align: center;
-            padding: 48px 20px 32px;
+            padding: 60px 20px 48px;
             position: relative;
+            min-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
         header h1 {
             font-family: 'Rubik Mono One', 'Noto Sans SC', sans-serif;
-            font-size: 2.8rem;
+            font-size: 3.6rem;
             color: var(--black);
             margin-bottom: 8px;
             letter-spacing: 2px;
@@ -81,9 +87,38 @@
         }
         header p {
             color: var(--text-light);
-            font-size: 1rem;
+            font-size: 1.15rem;
             font-weight: 700;
             letter-spacing: 1px;
+        }
+        .header-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin: 18px 0 22px;
+            padding: 7px 20px;
+            background: var(--black);
+            color: var(--yellow);
+            border-radius: 50px;
+            font-size: 0.78rem;
+            font-weight: 900;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            box-shadow: 4px 4px 0 var(--red);
+        }
+        .header-meta .meta-dot {
+            width: 7px;
+            height: 7px;
+            background: var(--red);
+            border-radius: 50%;
+            animation: metaPulse 1.2s ease-in-out infinite;
+        }
+        @keyframes metaPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.35; transform: scale(0.6); }
+        }
+        .header-meta .meta-sep {
+            opacity: 0.4;
         }
 
         .card {
@@ -119,8 +154,11 @@
         }
         @media (max-width: 640px) {
             .cards-row { flex-direction: column; gap: 16px; }
-            .card-half { margin-bottom: 0; }
-            header h1 { font-size: 2rem; }
+            .card-half { margin-bottom: 0; height: auto; min-height: 320px; }
+            header h1 { font-size: 2.4rem; }
+            .history-item { padding: 12px 14px; }
+            .history-item .h-score { font-size: 1.2rem; }
+            .history-item .h-date { font-size: 0.75rem; }
         }
 
         .input-group {
@@ -484,6 +522,7 @@
             gap: 8px;
             text-transform: uppercase;
             letter-spacing: 1px;
+            flex-shrink: 0;
         }
         .signals { margin-bottom: 24px; }
         .signal-item {
@@ -521,11 +560,13 @@
 
         .history-list {
             display: grid;
+            grid-template-columns: 1fr;
             gap: 12px;
             flex: 1;
             min-height: 0;
             overflow-y: auto;
             padding-right: 8px;
+            -webkit-overflow-scrolling: touch;
         }
         .history-list::-webkit-scrollbar { width: 8px; }
         .history-list::-webkit-scrollbar-track { background: var(--cream); border-radius: 10px; border: 2px solid var(--black); }
@@ -550,6 +591,11 @@
         .history-item .h-name {
             font-weight: 900;
             color: var(--black);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            min-width: 0;
         }
         .history-item .h-score {
             font-family: 'Rubik Mono One', sans-serif;
@@ -1301,30 +1347,74 @@
             pointer-events: none;
             z-index: 1;
         }
+
+
+        /* 分析按钮心跳 hover */
+        .btn:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: 9px 9px 0 var(--black);
+            background: var(--yellow-light);
+            animation: btnHeartbeat 1s ease-in-out;
+        }
+        @keyframes btnHeartbeat {
+            0%, 100% { transform: translate(-3px, -3px) scale(1); }
+            14% { transform: translate(-3px, -3px) scale(1.04); }
+            28% { transform: translate(-3px, -3px) scale(1); }
+            42% { transform: translate(-3px, -3px) scale(1.04); }
+            70% { transform: translate(-3px, -3px) scale(1); }
+        }
+
+        /* ===== 首屏心电图背景 ===== */
+        .header-ecg {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 65%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.55;
+        }
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
     </style>
 </head>
 <body>
+
     <!-- 情绪粒子背景 -->
     <canvas id="particleCanvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;"></canvas>
     <!-- 噪点胶片纹理 -->
     <div class="noise-overlay"></div>
 
     <!-- ticker -->
-    <div class="ticker">
-        <div class="ticker-inner">
-            HEART RATE ⚡ CRUSH INDEX ⚡ CHAT FREQ ⚡ REPLY SPEED ⚡ SHARE DESIRE ⚡ EMOTION WAVE ⚡ HEART RATE ⚡ CRUSH INDEX ⚡ CHAT FREQ ⚡ REPLY SPEED ⚡ SHARE DESIRE ⚡ EMOTION WAVE
+    <div class="ticker" id="tickerBar">
+        <div class="ticker-inner" id="tickerInner">
+            HEART RATE ⚡ CRUSH INDEX ⚡ CHAT FREQ ⚡ REPLY SPEED ⚡ SHARE DESIRE ⚡ EMOTION WAVE ⚡
         </div>
     </div>
     <!-- 用户状态栏 -->
     <div class="user-bar" id="userBar">
-        <button class="user-btn btn-login" onclick="showLoginModal()">❤️ 登录 / 注册</button>
+        <button class="user-btn btn-login" onclick="showLoginModal()">登录 / 注册</button>
     </div>
 
     <div class="top-bar"></div>
 
     <header>
-        <h1><span>❤</span> 心动解码器</h1>
-        <p>Crush Meter · 上传聊天记录，AI 解读 ta 的心动程度</p>
+        <canvas class="header-ecg" id="headerEcgCanvas"></canvas>
+        <div class="header-content">
+            <h1>心动解码器</h1>
+            <div class="header-meta">
+                <span class="meta-dot"></span>
+                <span class="meta-bpm">BPM 72</span>
+                <span class="meta-sep">|</span>
+                <span class="meta-status">实时解码中</span>
+                <span class="meta-sep">|</span>
+                <span class="meta-signal">信号强度 98%</span>
+            </div>
+            <p>Crush Meter · 上传聊天记录，AI 解读 ta 的心动程度</p>
+        </div>
     </header>
 
     <div class="wave-divider"></div>
@@ -1432,7 +1522,7 @@
             <!-- 注册提示（未登录时显示） -->
             <div class="register-hint" id="registerHint" style="display:none;">
                 <p>🌸 注册账号，永久保存你的心动档案</p>
-                <button class="hint-btn" onclick="showRegisterModal()">❤️ 保存心动档案</button>
+                <button class="hint-btn" onclick="showRegisterModal()">保存心动档案</button>
             </div>
         </div>
 
@@ -1510,7 +1600,7 @@
                 <input type="text" class="modal-input" id="authUsername" placeholder="用户名" maxlength="20">
                 <input type="password" class="modal-input" id="authPassword" placeholder="密码">
                 <input type="password" class="modal-input" id="authPassword2" placeholder="确认密码" style="display:none;">
-                <button class="modal-btn modal-btn-primary" id="authBtn" onclick="handleAuth()">🔑 登录</button>
+                <button class="modal-btn modal-btn-primary" id="authBtn" onclick="handleAuth()">登录</button>
                 <div class="modal-footer">
                     <span id="modalFooterText">还没有账号？</span>
                     <a onclick="toggleAuthMode()" id="modalToggle">注册一个</a>
@@ -1563,7 +1653,7 @@
                 `;
             } else {
                 bar.innerHTML = `
-                    <button class="user-btn btn-login" onclick="showLoginModal()">❤️ 登录 / 注册</button>
+                    <button class="user-btn btn-login" onclick="showLoginModal()">登录 / 注册</button>
                 `;
             }
         }
@@ -1573,7 +1663,7 @@
             document.getElementById('authModal').classList.add('show');
             document.getElementById('modalTitle').textContent = '欢迎回来~';
             document.getElementById('modalSubtitle').textContent = '登录你的心动档案';
-            document.getElementById('authBtn').textContent = '🔑 登录';
+            document.getElementById('authBtn').textContent = '登录';
             document.getElementById('authPassword2').style.display = 'none';
             document.getElementById('modalFooterText').textContent = '还没有账号？';
             document.getElementById('modalToggle').textContent = '注册一个';
@@ -1681,6 +1771,25 @@
         }
 
         // 页面加载时初始化
+
+        // ===== Ticker 无缝循环 =====
+        (function initTicker() {
+            const inner = document.getElementById('tickerInner');
+            const bar = document.getElementById('tickerBar');
+            if (!inner || !bar) return;
+            const baseText = inner.textContent.trim();
+            // 复制多份内容确保宽度足够（至少3倍屏幕宽度）
+            const barWidth = bar.offsetWidth || window.innerWidth;
+            let totalText = baseText;
+            while (inner.offsetWidth < barWidth * 3) {
+                totalText += ' ' + baseText;
+                inner.textContent = totalText;
+            }
+            // 再加一份确保 -50% 时完美衔接
+            inner.textContent = totalText + ' ' + baseText;
+        })();
+
+        // ===== 首屏心跳仪表盘动画 =====
         initAuth();
         loadHistory();
 
@@ -1912,7 +2021,9 @@
             }
 
             const labels = data.map((d, i) => {
-                const date = new Date(d.created_at);
+                // 优先使用 chat_date（聊天记录的实际日期），否则 fallback 到 created_at
+                const dateStr = d.chat_date || d.created_at;
+                const date = new Date(dateStr);
                 return `${date.getMonth() + 1}/${date.getDate()}`;
             });
             const scores = data.map(d => d.heart_rate);
@@ -2478,14 +2589,231 @@
 
 
 
-        // ===== 期间特效系统（背景色 + 粒子 + 烟花）=====
+        
+
+        // ===== 首屏心电图背景动画 =====
+        (function initHeaderEcg() {
+            const canvas = document.getElementById('headerEcgCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            let W, H;
+            function resize() {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                W = canvas.width = rect.width * window.devicePixelRatio;
+                H = canvas.height = rect.height * 0.65 * window.devicePixelRatio;
+                ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                W /= window.devicePixelRatio;
+                H /= window.devicePixelRatio;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            const maxPoints = 300;
+            const data = [];
+            const pulseTypes = []; // 每个点对应的心跳类型
+            for (let i = 0; i < maxPoints; i++) { data.push(0); pulseTypes.push(null); }
+
+            let tick = 0;
+            let nextBeat = 40 + Math.floor(Math.random() * 30);
+            let beatPhase = 0;
+            let beatCount = 0;
+            let currentBeatType = 'normal';
+            let lastPulseType = 'normal';
+            let heartWaveIdx = -1; // 爱心波形当前索引
+
+            // 爱心形状波形（左圆弧顶 → 中间凹 → 右圆弧顶 → 心尖尖 → 回基线）
+            const HEART_WAVE = [
+                0, 0.02, 0.08, 0.18, 0.30, 0.40, 0.48, 0.54, 0.58, 0.60, 0.58,
+                0.52, 0.44, 0.38, 0.34, 0.32, 0.33, 0.36, 0.40, 0.46,
+                0.54, 0.62, 0.70, 0.78, 0.86, 0.92, 0.96, 1.0, 0.94,
+                0.80, 0.60, 0.40, 0.22, 0.10, 0.03, 0.01, 0
+            ];
+
+            function pickBeatType() {
+                beatCount++;
+                if (beatCount % 5 === 0) return 'heart';
+                const types = ['normal', 'normal', 'normal', 'narrow', 'wide', 'tall'];
+                return types[Math.floor(Math.random() * types.length)];
+            }
+
+            function generateNextValue() {
+                tick++;
+
+                if (tick >= nextBeat) {
+                    beatPhase = 1;
+                    currentBeatType = pickBeatType();
+                    nextBeat = tick + 42 + Math.floor(Math.random() * 30);
+                    if (currentBeatType === 'heart') {
+                        heartWaveIdx = 0;
+                    }
+                }
+
+                // 如果正在输出爱心波形
+                if (currentBeatType === 'heart' && heartWaveIdx >= 0) {
+                    const val = HEART_WAVE[heartWaveIdx];
+                    heartWaveIdx++;
+                    if (heartWaveIdx >= HEART_WAVE.length) {
+                        heartWaveIdx = -1;
+                        beatPhase = 0;
+                    }
+                    lastPulseType = 'heart';
+                    return val;
+                }
+
+                let val = 0;
+                if (beatPhase > 0) {
+                    let phases;
+                    const r = () => 0.6 + Math.random() * 0.3;
+
+                    if (currentBeatType === 'narrow') {
+                        phases = [
+                            { t: 1, v: -0.06 }, { t: 2, v: 0.5 }, { t: 3, v: -0.18 },
+                            { t: 5, v: 0.08 }, { t: 10, v: 0 }
+                        ];
+                    } else if (currentBeatType === 'wide') {
+                        phases = [
+                            { t: 1, v: -0.12 }, { t: 2, v: 0.6 }, { t: 3, v: -0.45 },
+                            { t: 4, v: 0.18 }, { t: 6, v: 0.06 }, { t: 14, v: 0 }
+                        ];
+                    } else if (currentBeatType === 'tall') {
+                        phases = [
+                            { t: 1, v: -0.08 }, { t: 2, v: 0.95 }, { t: 3, v: -0.4 },
+                            { t: 4, v: 0.2 }, { t: 9, v: 0 }
+                        ];
+                    } else {
+                        phases = [
+                            { t: 1, v: -0.1 }, { t: 2, v: r() }, { t: 3, v: -0.32 },
+                            { t: 4, v: 0.12 + Math.random() * 0.06 }, { t: 8, v: 0 }
+                        ];
+                    }
+                    const phase = phases.find(p => beatPhase === p.t);
+                    if (phase) val = phase.v;
+                    beatPhase++;
+                    if (beatPhase > 20) beatPhase = 0;
+                }
+
+                val += (Math.random() - 0.5) * 0.025;
+                lastPulseType = currentBeatType;
+                return val;
+            }
+
+            function draw() {
+                ctx.fillStyle = 'rgba(255, 204, 0, 0.12)';
+                ctx.fillRect(0, 0, W, H);
+
+                data.shift();
+                pulseTypes.shift();
+                data.push(generateNextValue());
+                pulseTypes.push(lastPulseType);
+
+                // 网格
+                ctx.strokeStyle = 'rgba(255, 59, 48, 0.05)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                const gridSpacing = 30;
+                for (let x = 0; x < W; x += gridSpacing) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+                for (let y = 0; y < H; y += gridSpacing) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+                ctx.stroke();
+
+                const baseY = H * 0.55;
+                const amplitude = H * 0.38;
+                const stepX = W / maxPoints;
+
+                // 主心电图线 - 按段绘制，heart 类型用亮粉色
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+
+                // 先绘制普通脉冲
+                ctx.beginPath();
+                ctx.strokeStyle = '#FF3B30';
+                ctx.lineWidth = 2.5;
+                let drawing = false;
+                for (let i = 0; i < data.length; i++) {
+                    if (pulseTypes[i] === 'heart') {
+                        if (drawing) { ctx.stroke(); drawing = false; }
+                        continue;
+                    }
+                    const x = i * stepX;
+                    const y = baseY - data[i] * amplitude;
+                    if (!drawing) { ctx.moveTo(x, y); drawing = true; }
+                    else ctx.lineTo(x, y);
+                }
+                if (drawing) ctx.stroke();
+
+                // 再绘制爱心脉冲（亮粉色 + 更粗）
+                ctx.beginPath();
+                ctx.strokeStyle = '#FF4D80';
+                ctx.lineWidth = 3.5;
+                ctx.shadowColor = '#FF4D80';
+                ctx.shadowBlur = 10;
+                drawing = false;
+                for (let i = 0; i < data.length; i++) {
+                    if (pulseTypes[i] !== 'heart') {
+                        if (drawing) { ctx.stroke(); drawing = false; }
+                        continue;
+                    }
+                    const x = i * stepX;
+                    const y = baseY - data[i] * amplitude;
+                    if (!drawing) { ctx.moveTo(x, y); drawing = true; }
+                    else ctx.lineTo(x, y);
+                }
+                if (drawing) ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                // 淡红光晕
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(255, 107, 107, 0.35)';
+                ctx.lineWidth = 6;
+                drawing = false;
+                for (let i = 0; i < data.length; i++) {
+                    const x = i * stepX;
+                    const y = baseY - data[i] * amplitude;
+                    if (!drawing) { ctx.moveTo(x, y); drawing = true; }
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+                ctx.restore();
+
+                // 右侧光标
+                const lastY = baseY - data[data.length - 1] * amplitude;
+                ctx.fillStyle = pulseTypes[pulseTypes.length - 1] === 'heart' ? '#FF4D80' : '#FF3B30';
+                ctx.beginPath();
+                ctx.arc(W - 4, lastY, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.save();
+                ctx.globalAlpha = 0.25;
+                ctx.fillStyle = pulseTypes[pulseTypes.length - 1] === 'heart' ? '#FF4D80' : '#FF3B30';
+                ctx.beginPath();
+                ctx.arc(W - 4, lastY, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                requestAnimationFrame(draw);
+            }
+            requestAnimationFrame(draw);
+
+            // 标题装饰条动态更新
+            const metaBpm = document.querySelector('.meta-bpm');
+            const metaSignal = document.querySelector('.meta-signal');
+            setInterval(() => {
+                const bpm = 68 + Math.floor(Math.random() * 22);
+                const sig = 92 + Math.floor(Math.random() * 8);
+                if (metaBpm) metaBpm.textContent = 'BPM ' + bpm;
+                if (metaSignal) metaSignal.textContent = '信号强度 ' + sig + '%';
+            }, 1800);
+        })();
+
+// ===== 期间特效系统（背景色 + 粒子 + 烟花）=====
         const STAGE_CONFIG = {
-            '陌生期':   { cls: 'stage-stranger',  emojis: ['\u2744\ufe0f'], count: 40,  speed: 0.4,  opacity: 0.25, firework: false },
-            '朋友期':   { cls: 'stage-friend',    emojis: ['\ud83d\udcac', '\ud83d\ude0a', '\ud83c\udf1f', '\u270c\ufe0f'], count: 25,  speed: 0.6,  opacity: 0.20, firework: false },
-            '好感期':   { cls: 'stage-liking',    emojis: ['\u2728', '\u2b50', '\ud83c\udf1f', '\ud83d\udcab', '\ud83d\udc9b'], count: 30,  speed: 0.8,  opacity: 0.25, firework: false },
-            '暧昧期':   { cls: 'stage-ambiguous', emojis: ['\u2764\ufe0f', '\ud83d\udc95', '\ud83d\udc96', '\ud83d\udc97', '\ud83d\udc9e'], count: 35,  speed: 1.0,  opacity: 0.30, firework: false },
-            '热恋期':   { cls: 'stage-passion',   emojis: ['\u2764\ufe0f', '\ud83d\udd25', '\ud83d\udca5', '\u2728', '\ud83d\udc95'], count: 55,  speed: 1.4,  opacity: 0.35, firework: true  },
-            '深情期':   { cls: 'stage-deep',      emojis: ['\ud83d\udc96', '\u2728', '\ud83d\udc95', '\ud83d\udc97', '\ud83d\udc9d'], count: 70,  speed: 1.6,  opacity: 0.40, firework: true  }
+            '陌生期':   { cls: 'stage-stranger',  emojis: ['\u2744\ufe0f'], count: 45,  speed: 1.4,  firework: false },
+            '朋友期':   { cls: 'stage-friend',    emojis: ['\ud83d\udcac', '\ud83d\ude0a', '\ud83c\udf1f', '\u270c\ufe0f'], count: 45,  speed: 1.8,  firework: false },
+            '好感期':   { cls: 'stage-liking',    emojis: ['\u2728', '\u2b50', '\ud83c\udf1f', '\ud83d\udcab', '\ud83d\udc9b'], count: 55,  speed: 2.2,  firework: false },
+            '暧昧期':   { cls: 'stage-ambiguous', emojis: ['\u2764\ufe0f', '\ud83d\udc95', '\ud83d\udc96', '\ud83d\udc97', '\ud83d\udc9e'], count: 60,  speed: 2.6,  firework: false },
+            '热恋期':   { cls: 'stage-passion',   emojis: ['\u2764\ufe0f', '\ud83d\udd25', '\ud83d\udca5', '\u2728', '\ud83d\udc95'], count: 80,  speed: 3.2,  firework: true  },
+            '深情期':   { cls: 'stage-deep',      emojis: ['\ud83d\udc96', '\u2728', '\ud83d\udc95', '\ud83d\udc97', '\ud83d\udc9d'], count: 90,  speed: 3.6,  firework: true  }
         };
 
         const pCanvas = document.getElementById('particleCanvas');
@@ -2502,42 +2830,54 @@
         window.addEventListener('resize', resizeParticles);
         resizeParticles();
 
+        // 离屏缓存：每个 emoji + size 组合预先渲染成小 canvas，避免每帧 fillText 开销
+        const emojiCache = new Map();
+        function getEmojiCanvas(emoji, size) {
+            const key = emoji + '|' + Math.round(size);
+            let cached = emojiCache.get(key);
+            if (cached) return cached;
+            const c = document.createElement('canvas');
+            const ctx = c.getContext('2d');
+            c.width = size + 4;
+            c.height = size + 4;
+            ctx.font = size + 'px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(emoji, c.width / 2, c.height / 2);
+            emojiCache.set(key, c);
+            return c;
+        }
+
         class Particle {
             constructor(cfg) {
-                this.reset(cfg);
+                this.reset(cfg, true);
             }
-            reset(cfg) {
+            reset(cfg, initial = false) {
                 this.x = Math.random() * pW;
-                this.y = -30;
-                this.size = 14 + Math.random() * 22;
-                this.speedY = cfg.speed * (0.5 + Math.random());
-                this.speedX = (Math.random() - 0.5) * cfg.speed * 0.8;
-                this.opacity = cfg.opacity * (0.6 + Math.random() * 0.4);
-                this.rotation = Math.random() * 360;
-                this.rotSpeed = (Math.random() - 0.5) * 3;
+                this.y = initial ? Math.random() * pH - pH * 0.5 : -60 - Math.random() * 200;
+                // 大小有大有小：14px ~ 44px（量化到 6 档，方便缓存）
+                const sizeSlots = [14, 20, 26, 32, 38, 44];
+                this.size = sizeSlots[Math.floor(Math.random() * sizeSlots.length)];
+                this.speedY = cfg.speed * (0.9 + Math.random()) * (26 / this.size);
+                this.speedX = (Math.random() - 0.5) * cfg.speed * 0.5;
                 this.emoji = cfg.emojis[Math.floor(Math.random() * cfg.emojis.length)];
                 this.swing = Math.random() * Math.PI * 2;
-                this.swingSpeed = 0.02 + Math.random() * 0.03;
+                this.swingSpeed = 0.015 + Math.random() * 0.025;
+                this.img = getEmojiCanvas(this.emoji, this.size);
+                this.halfW = this.img.width / 2;
+                this.halfH = this.img.height / 2;
             }
             update(cfg) {
                 this.y += this.speedY;
                 this.swing += this.swingSpeed;
                 this.x += this.speedX + Math.sin(this.swing) * 0.5;
-                this.rotation += this.rotSpeed;
-                if (this.y > pH + 40) {
-                    this.x = Math.random() * pW;
-                    this.y = -30;
-                    this.emoji = cfg.emojis[Math.floor(Math.random() * cfg.emojis.length)];
+                if (this.y > pH + 60) {
+                    this.reset(cfg);
                 }
             }
             draw() {
-                pCtx.save();
-                pCtx.globalAlpha = this.opacity;
-                pCtx.font = `${this.size}px sans-serif`;
-                pCtx.translate(this.x, this.y);
-                pCtx.rotate(this.rotation * Math.PI / 180);
-                pCtx.fillText(this.emoji, 0, 0);
-                pCtx.restore();
+                // 不用 save/restore/rotate，直接 drawImage，性能最好
+                pCtx.drawImage(this.img, this.x - this.halfW, this.y - this.halfH);
             }
         }
 
