@@ -3008,8 +3008,11 @@
             if (cached) return cached;
             const c = document.createElement('canvas');
             const ctx = c.getContext('2d');
-            c.width = size + 4;
-            c.height = size + 4;
+            ctx.font = size + 'px sans-serif';
+            const metrics = ctx.measureText(emoji);
+            const pad = 8; // 上下左右各留 8px 余量，防止 emoji 被裁剪
+            c.width = Math.ceil(metrics.width) + pad * 2;
+            c.height = size + pad * 2;
             ctx.font = size + 'px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
