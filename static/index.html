@@ -654,6 +654,61 @@
             font-size: 0.85rem;
             font-weight: 700;
         }
+        .footer-links {
+            margin-top: 12px;
+        }
+        .footer-links a {
+            color: var(--text-light);
+            text-decoration: none;
+            font-size: 0.8rem;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+            border-bottom: 1px dashed var(--text-light);
+            padding-bottom: 1px;
+        }
+        .footer-links a:hover {
+            opacity: 1;
+            border-bottom: 2px solid var(--black);
+        }
+        .privacy-modal {
+            max-width: 560px;
+            max-height: 80vh;
+        }
+        .privacy-body {
+            max-height: calc(80vh - 120px);
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+        .privacy-body::-webkit-scrollbar { width: 6px; }
+        .privacy-body::-webkit-scrollbar-track { background: var(--cream); border-radius: 4px; }
+        .privacy-body::-webkit-scrollbar-thumb { background: var(--red); border-radius: 4px; }
+        .privacy-section {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .privacy-section:last-child { margin-bottom: 0; }
+        .privacy-section h4 {
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+            color: var(--black);
+        }
+        .privacy-section p, .privacy-section ul {
+            font-size: 0.82rem;
+            line-height: 1.7;
+            color: var(--text);
+            margin: 0;
+        }
+        .privacy-section ul {
+            padding-left: 18px;
+            margin-top: 6px;
+            margin-bottom: 6px;
+        }
+        .privacy-section li {
+            margin-bottom: 4px;
+        }
+        .privacy-section strong {
+            color: var(--red);
+        }
 
         .trend-section {
             margin-top: 20px;
@@ -1586,7 +1641,54 @@
 
     <footer>
         <span class="leaf">🌿</span> 心动解码器 Crush Meter <span class="leaf">🌸</span>
+        <div class="footer-links">
+            <a href="#" onclick="openPrivacyModal();return false;">🔐 隐私政策</a>
+        </div>
     </footer>
+
+    <!-- 隐私政策弹窗 -->
+    <div class="modal-overlay" id="privacyModal" style="display:none;">
+        <div class="modal privacy-modal">
+            <button class="modal-close" onclick="closePrivacyModal()">&times;</button>
+            <div class="modal-header">
+                <h3>🔐 隐私政策</h3>
+                <p>你的心动故事，只属于你自己</p>
+            </div>
+            <div class="modal-body privacy-body">
+                <div class="privacy-section">
+                    <h4>✅ 聊天记录如何处理</h4>
+                    <p>你上传的聊天记录（文字粘贴或截图 OCR）<strong>仅用于 AI 分析</strong>，不会被任何人工审查，也不会用于其他用途。分析完成后，聊天内容的原始文本不会保留在服务器上。</p>
+                </div>
+                <div class="privacy-section">
+                    <h4>✅ 数据存储在哪里</h4>
+                    <p>我们仅保存以下内容：</p>
+                    <ul>
+                        <li>AI 分析结果（心动指数、等级、五维度评分）</li>
+                        <li>Crush 的名字和聊天日期</li>
+                        <li>你的账户信息（如果注册了）</li>
+                    </ul>
+                    <p>存储位置在我们的服务器，不会同步到第三方平台。</p>
+                </div>
+                <div class="privacy-section">
+                    <h4>✅ 截图 OCR 说明</h4>
+                    <p>如果你上传了微信聊天截图，我们会通过 OCR 技术识别图片中的文字。截图文件<strong>仅保存在服务器上</strong>，供你自己查看和管理，不会被任何人下载或查看。你可以随时删除上传的截图。</p>
+                </div>
+                <div class="privacy-section">
+                    <h4>✅ 你的权利</h4>
+                    <ul>
+                        <li>随时查看和删除你的分析历史</li>
+                        <li>随时删除上传的截图</li>
+                        <li>注销账户时一并删除所有个人数据</li>
+                        <li>使用"访客模式"时不需要提供任何个人信息</li>
+                    </ul>
+                </div>
+                <div class="privacy-section">
+                    <h4>✅ 联系我们</h4>
+                    <p>如果你对隐私政策有任何疑问，或者想要完全删除自己的数据，请随时联系我们。</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- 登录/注册弹窗 -->
     <div class="modal-overlay" id="authModal">
@@ -1686,6 +1788,26 @@
             document.getElementById('authPassword').value = '';
             document.getElementById('authPassword2').value = '';
         }
+
+        function openPrivacyModal() {
+            document.getElementById('privacyModal').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            // 小延迟触发显示动画
+            requestAnimationFrame(() => {
+                document.getElementById('privacyModal').classList.add('show');
+            });
+        }
+        function closePrivacyModal() {
+            document.getElementById('privacyModal').classList.remove('show');
+            document.body.style.overflow = '';
+            setTimeout(() => {
+                document.getElementById('privacyModal').style.display = 'none';
+            }, 250);
+        }
+        // 点击遮罩层关闭隐私弹窗
+        document.getElementById('privacyModal').addEventListener('click', function(e) {
+            if (e.target === this) closePrivacyModal();
+        });
 
         function toggleAuthMode() {
             if (authMode === 'login') {
