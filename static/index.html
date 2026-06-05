@@ -2765,17 +2765,17 @@
             let lastPulseType = 'normal';
             let heartWaveIdx = -1; // 爱心波形当前索引
 
-            // 爱心形状波形（左圆弧顶 → 中间凹 → 右圆弧顶 → 心尖尖 → 回基线）
+            // 爱心形状波形（左圆弧顶 → 中间V凹 → 右圆弧顶 → 心尖尖 → 回基线）
             const HEART_WAVE = [
-                0, 0.02, 0.08, 0.18, 0.30, 0.40, 0.48, 0.54, 0.58, 0.60, 0.58,
-                0.52, 0.44, 0.38, 0.34, 0.32, 0.33, 0.36, 0.40, 0.46,
-                0.54, 0.62, 0.70, 0.78, 0.86, 0.92, 0.96, 1.0, 0.94,
-                0.80, 0.60, 0.40, 0.22, 0.10, 0.03, 0.01, 0
+                0.00, 0.01, 0.02, 0.04, 0.07, 0.12, 0.20, 0.30, 0.42, 0.52,
+                0.58, 0.60, 0.58, 0.52, 0.44, 0.36, 0.30, 0.26, 0.24, 0.25,
+                0.28, 0.34, 0.42, 0.50, 0.58, 0.66, 0.74, 0.82, 0.90, 0.96,
+                1.00, 0.90, 0.70, 0.48, 0.28, 0.14, 0.06, 0.02, 0.01, 0.00
             ];
 
             function pickBeatType() {
                 beatCount++;
-                if (beatCount % 5 === 0) return 'heart';
+                if (beatCount % 8 === 0) return 'heart';
                 const types = ['normal', 'normal', 'normal', 'narrow', 'wide', 'tall'];
                 return types[Math.floor(Math.random() * types.length)];
             }
@@ -2794,7 +2794,7 @@
 
                 // 如果正在输出爱心波形
                 if (currentBeatType === 'heart' && heartWaveIdx >= 0) {
-                    const val = HEART_WAVE[heartWaveIdx];
+                    const val = HEART_WAVE[heartWaveIdx] * 1.25; // 爱心波形振幅更大
                     heartWaveIdx++;
                     if (heartWaveIdx >= HEART_WAVE.length) {
                         heartWaveIdx = -1;
@@ -2884,12 +2884,12 @@
                 }
                 if (drawing) ctx.stroke();
 
-                // 再绘制爱心脉冲（亮粉色 + 更粗）
+                // 再绘制爱心脉冲（亮粉色 + 更粗 + 强发光）
                 ctx.beginPath();
                 ctx.strokeStyle = '#FF4D80';
-                ctx.lineWidth = 3.5;
+                ctx.lineWidth = 4;
                 ctx.shadowColor = '#FF4D80';
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = 16;
                 drawing = false;
                 for (let i = 0; i < data.length; i++) {
                     if (pulseTypes[i] !== 'heart') {
@@ -2903,6 +2903,33 @@
                 }
                 if (drawing) ctx.stroke();
                 ctx.shadowBlur = 0;
+
+                // 在爱心波形峰值处绘制小心形符号
+                let heartPeakIdx = -1;
+                let heartPeakVal = -1;
+                for (let i = 0; i < data.length; i++) {
+                    if (pulseTypes[i] === 'heart' && data[i] > heartPeakVal) {
+                        heartPeakVal = data[i];
+                        heartPeakIdx = i;
+                    }
+                }
+                if (heartPeakIdx >= 0 && heartPeakVal > 0.5) {
+                    const hx = heartPeakIdx * stepX;
+                    const hy = baseY - heartPeakVal * amplitude;
+                    const hs = 10; // 心形大小
+                    ctx.save();
+                    ctx.fillStyle = '#FF4D80';
+                    ctx.shadowColor = '#FF4D80';
+                    ctx.shadowBlur = 12;
+                    ctx.beginPath();
+                    ctx.moveTo(hx, hy + hs * 0.25);
+                    ctx.bezierCurveTo(hx, hy, hx - hs * 0.5, hy, hx - hs * 0.5, hy + hs * 0.25);
+                    ctx.bezierCurveTo(hx - hs * 0.5, hy + hs * 0.5, hx, hy + hs * 0.75, hx, hy + hs);
+                    ctx.bezierCurveTo(hx, hy + hs * 0.75, hx + hs * 0.5, hy + hs * 0.5, hx + hs * 0.5, hy + hs * 0.25);
+                    ctx.bezierCurveTo(hx + hs * 0.5, hy, hx, hy, hx, hy + hs * 0.25);
+                    ctx.fill();
+                    ctx.restore();
+                }
 
                 // 淡红光晕
                 ctx.save();
