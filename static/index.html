@@ -917,6 +917,45 @@
             text-decoration: underline;
         }
 
+        /* 确认清空弹窗 */
+        .confirm-modal {
+            max-width: 360px;
+        }
+        .confirm-body {
+            display: flex;
+            gap: 12px;
+            padding-top: 8px;
+        }
+        .confirm-btn {
+            flex: 1;
+            padding: 14px;
+            border: 4px solid var(--black);
+            border-radius: 50px;
+            font-size: 0.95rem;
+            font-weight: 900;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 4px 4px 0 var(--black);
+        }
+        .confirm-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 var(--black);
+        }
+        .confirm-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0 var(--black);
+        }
+        .confirm-btn-cancel {
+            background: var(--white);
+            color: var(--black);
+        }
+        .confirm-btn-ok {
+            background: var(--red);
+            color: var(--white);
+        }
+
         .register-hint {
             background: var(--yellow-light);
             border: 3px dashed var(--black);
@@ -1710,6 +1749,20 @@
                     <h4>✅ 联系我们</h4>
                     <p>如果你对隐私政策有任何疑问，或者想要完全删除自己的数据，请随时联系我们。</p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认清空弹窗 -->
+    <div class="modal-overlay" id="confirmClearModal">
+        <div class="modal confirm-modal">
+            <div class="modal-header">
+                <h3>🗑️ 确认清空？</h3>
+                <p>清空后无法恢复，确定要清空聊天记录吗？</p>
+            </div>
+            <div class="modal-body confirm-body">
+                <button class="confirm-btn confirm-btn-cancel" onclick="closeConfirmClearModal()">取消</button>
+                <button class="confirm-btn confirm-btn-ok" onclick="doClearChat()">确认清空</button>
             </div>
         </div>
     </div>
@@ -2557,12 +2610,31 @@
         function clearChatText() {
             const ta = document.getElementById('chatText');
             if (ta && ta.value.trim().length > 0) {
-                if (confirm('确定要清空聊天记录吗？')) {
-                    ta.value = '';
-                    ta.focus();
-                }
+                showConfirmClearModal();
             }
         }
+        function showConfirmClearModal() {
+            const modal = document.getElementById('confirmClearModal');
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeConfirmClearModal() {
+            const modal = document.getElementById('confirmClearModal');
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        function doClearChat() {
+            const ta = document.getElementById('chatText');
+            if (ta) {
+                ta.value = '';
+                ta.focus();
+            }
+            closeConfirmClearModal();
+        }
+        // 点击遮罩层关闭确认弹窗
+        document.getElementById('confirmClearModal').addEventListener('click', function(e) {
+            if (e.target === this) closeConfirmClearModal();
+        });
 
         function onCrushSelectChange(name) {
             if (!name) return;
