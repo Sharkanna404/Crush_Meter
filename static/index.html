@@ -1499,7 +1499,10 @@
                     <input type="text" id="crushName" placeholder="例如：小美" value="">
                 </div>
                 <div class="input-group">
-                    <label>聊天记录（直接粘贴即可）</label>
+                    <div class="label-row">
+                        <label>聊天记录（直接粘贴即可）</label>
+                        <button type="button" class="clear-btn" onclick="clearChatText()">🗑️ 清空</button>
+                    </div>
                     <textarea id="chatText" placeholder="例如：
 你：在干什么
 小美：刚下班，累死了哈哈哈
@@ -2549,6 +2552,16 @@
         function updateEcgSelectValue(name) {
             const select = document.getElementById('ecgCrushSelect');
             select.value = name;
+        }
+
+        function clearChatText() {
+            const ta = document.getElementById('chatText');
+            if (ta && ta.value.trim().length > 0) {
+                if (confirm('确定要清空聊天记录吗？')) {
+                    ta.value = '';
+                    ta.focus();
+                }
+            }
         }
 
         function onCrushSelectChange(name) {
