@@ -269,6 +269,44 @@
             cursor: not-allowed;
             transform: none;
         }
+        .btn.analyzing {
+            animation: btnHeartBeat 0.8s ease-in-out infinite;
+            background: var(--red);
+            color: var(--white);
+        }
+        @keyframes btnHeartBeat {
+            0%, 100% { transform: scale(1); }
+            14% { transform: scale(1.05); }
+            28% { transform: scale(1); }
+            42% { transform: scale(1.05); }
+            70% { transform: scale(1); }
+        }
+
+        /* 分析过程心电图加载条 */
+        .ecg-loader {
+            width: 100%;
+            height: 50px;
+            border: 4px solid var(--black);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--yellow);
+            box-shadow: 4px 4px 0 var(--black);
+            margin: 16px 0;
+            position: relative;
+        }
+        .ecg-loader canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .ecg-loader-text {
+            text-align: center;
+            font-weight: 900;
+            color: var(--black);
+            font-size: 0.9rem;
+            margin-top: 8px;
+            letter-spacing: 1px;
+        }
 
         .pink-section {
             background: var(--red);
@@ -2282,6 +2320,135 @@
         initAuth();
         loadHistory();
 
+        // ---- 分析过程心电图加载动画 ----
+        let ecgAnimFrame = null;
+        let ecgStartTime = 0;
+        const ECG_DURATION = 4000; // 4秒完成一轮
+
+        function getEcgY(x, W, H) {
+            // 生成简化心电图波形: 基线 + 脉冲
+            const cycle = (x / W) * 8; // 8个脉冲一轮
+            const phase = cycle % 1;
+            const base = H / 2;
+            if (phase < 0.05) return base;
+            if (phase < 0.10) return base - H * 0.08;
+            if (phase < 0.15) return base + H * 0.04;
+            if (phase < 0.20) return base - H * 0.25;
+            if (phase < 0.25) return base + H * 0.12;
+            if (phase < 0.32) return base - H * 0.05;
+            if (phase < 0.45) return base;
+            if (phase < 0.50) return base - H * 0.06;
+            if (phase < 0.55) return base + H * 0.03;
+            if (phase < 0.60) return base - H * 0.18;
+            if (phase < 0.65) return base + H * 0.08;
+            if (phase < 0.72) return base - H * 0.04;
+            return base;
+        }
+
+        function drawEcgFrame(canvas, progress) {
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width;
+            const H = canvas.height;
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = W * dpr;
+            canvas.height = H * dpr;
+            ctx.scale(dpr, dpr);
+
+            // 背景
+            ctx.fillStyle = '#FFCC00';
+            ctx.fillRect(0, 0, W, H);
+
+            // 进度填充（浅黑色遮罩）
+            ctx.fillStyle = 'rgba(26, 26, 26, 0.06)';
+            ctx.fillRect(0, 0, W * progress, H);
+
+            // 心电图波形
+            ctx.strokeStyle = '#FF3B30';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            for (let x = 0; x <= W * progress; x += 2) {
+                const y = getEcgY(x, W, H);
+                if (x === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // 进度端点（小红点）
+            if (progress > 0) {
+                const endX = W * progress;
+                const endY = getEcgY(endX, W, H);
+                ctx.fillStyle = '#FF3B30';
+                ctx.beginPath();
+                ctx.arc(endX, endY, 4, 0, Math.PI * 2);
+                ctx.fill();
+                // 光晕
+                ctx.fillStyle = 'rgba(255, 59, 48, 0.25)';
+                ctx.beginPath();
+                ctx.arc(endX, endY, 10, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function startAnalyzingAnimation() {
+            const btn = document.getElementById('analyzeBtn');
+            const loading = document.getElementById('loadingArea');
+            btn.classList.add('analyzing');
+
+            // 创建心电图加载条
+            const loaderWrap = document.createElement('div');
+            loaderWrap.id = 'ecgLoaderWrap';
+            loaderWrap.innerHTML = `
+                <div class="ecg-loader"><canvas id="ecgLoaderCanvas"></canvas></div>
+                <div class="ecg-loader-text" id="ecgLoaderText">正在解码心动信号...</div>
+            `;
+            loading.innerHTML = '';
+            loading.appendChild(loaderWrap);
+
+            const canvas = document.getElementById('ecgLoaderCanvas');
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = '50px';
+            canvas.width = rect.width;
+            canvas.height = 50;
+
+            ecgStartTime = performance.now();
+            const textEl = document.getElementById('ecgLoaderText');
+            const texts = ['正在解码心动信号...', '正在解码心动信号..', '正在解码心动信号.', '正在分析聊天记录...', '正在分析聊天记录..', '正在分析聊天记录.', '正在计算心动指数...', '正在计算心动指数..', '正在计算心动指数.'];
+            let textIdx = 0;
+
+            function frame(now) {
+                const elapsed = now - ecgStartTime;
+                let progress = elapsed / ECG_DURATION;
+                if (progress > 1) progress = 1;
+
+                drawEcgFrame(canvas, progress);
+
+                // 更新文字
+                if (Math.floor(elapsed / 400) !== textIdx) {
+                    textIdx = Math.floor(elapsed / 400);
+                    textEl.textContent = texts[textIdx % texts.length];
+                }
+
+                if (progress < 1) {
+                    ecgAnimFrame = requestAnimationFrame(frame);
+                }
+            }
+            ecgAnimFrame = requestAnimationFrame(frame);
+        }
+
+        function stopAnalyzingAnimation() {
+            const btn = document.getElementById('analyzeBtn');
+            const loading = document.getElementById('loadingArea');
+            btn.classList.remove('analyzing');
+            if (ecgAnimFrame) {
+                cancelAnimationFrame(ecgAnimFrame);
+                ecgAnimFrame = null;
+            }
+            loading.innerHTML = '';
+        }
+
         async function analyze() {
             const crushName = document.getElementById('crushName').value.trim();
             let chatText = document.getElementById('chatText').value.trim();
@@ -2305,7 +2472,7 @@
             }
 
             btn.disabled = true;
-            loading.innerHTML = '<div class="loading">正在解码心动信号...</div>';
+            startAnalyzingAnimation();
             errorArea.innerHTML = '';
             resultArea.classList.remove('show');
 
@@ -2350,7 +2517,7 @@
                 errorArea.innerHTML = `<div class="error-box">请求失败：${err.message}</div>`;
             } finally {
                 btn.disabled = false;
-                loading.innerHTML = '';
+                stopAnalyzingAnimation();
             }
         }
 
