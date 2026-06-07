@@ -22,7 +22,7 @@ from openai import OpenAI
 from prompt import build_analysis_messages
 from database import (
     init_db, save_analysis, get_history, get_trend, get_timeline,
-    get_analysis_by_id, delete_analysis,
+    get_analysis_by_id, delete_analysis, save_feedback,
     create_user, get_user_by_username, get_user_by_id,
     generate_guest_uid, migrate_guest_to_user,
     save_image, get_images, get_image_by_id, delete_image,
@@ -994,6 +994,26 @@ async def timeline(
 
     result = get_timeline(crush_name, user_id=user_id, guest_uid=guest_uid, granularity=granularity)
     return result
+
+
+@app.post("/feedback")
+async def feedback_api(body: dict):
+    """接收用户反馈"""
+    content = body.get("content", "").strip()
+    contact = body.get("contact", "").strip()
+
+    if not content:
+        return JSONResponse({"error": "请填写反馈内容"}, status_code=400)
+
+    if len(content) > 2000:
+        return JSONResponse({"error": "反馈内容不能超过2000字"}, status_code=400)
+
+    try:
+        feedback_id = save_feedback(content=content, contact=contact)
+        return {"success": True, "message": "反馈已提交，感谢你的建议！", "id": feedback_id}
+    except Exception as e:
+        return JSONResponse({"error": f"提交失败：{str(e)}"}, status_code=500)
+
 
 if __name__ == "__main__":
     import uvicorn

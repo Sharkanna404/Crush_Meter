@@ -68,6 +68,16 @@ def init_db():
         )
     """)
 
+    # feedbacks 表（用户反馈）
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS feedbacks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            contact TEXT DEFAULT '',
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -510,3 +520,40 @@ def get_timeline(crush_name: str, user_id: int = None, guest_uid: str = None, gr
         "total_points": len(data),
         "data": data
     }
+
+
+# ---- 反馈相关 ----
+
+def save_feedback(content: str, contact: str = "") -> int:
+    """保存用户反馈"""
+    conn = get_conn()
+    cursor = conn.execute(
+        "INSERT INTO feedbacks (contact, content, created_at) VALUES (?, ?, ?)",
+        (contact, content, datetime.now().isoformat())
+    )
+    conn.commit()
+    feedback_id = cursor.lastrowid
+    conn.close()
+    return feedback_id
+
+
+def get_feedbacks(limit: int = 50) -> list:
+    """获取反馈列表（管理后台用）"""
+    conn = get_conn()
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT * FROM feedbacks ORDER BY created_at DESC LIMIT ?",
+        (limit,)
+    ).fetchall()
+    conn.close()
+    return [
+        {
+            "id": row["id"],
+            "contact": row["contact"],
+            "content": row["content"],
+            "created_at": row["created_at"]
+        }
+        for row in rows
+    ]
+
+ 

@@ -702,6 +702,44 @@
             max-width: 560px;
             max-height: 80vh;
         }
+        .feedback-modal {
+            max-width: 480px;
+        }
+        .feedback-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .feedback-label {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .feedback-textarea {
+            min-height: 120px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        .feedback-hint {
+            font-size: 0.8rem;
+            color: var(--red);
+            min-height: 20px;
+            font-weight: 700;
+        }
+        .feedback-success {
+            text-align: center;
+            padding: 24px 0;
+        }
+        .feedback-success .emoji {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 12px;
+        }
+        .feedback-success p {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text);
+        }
         .privacy-body {
             max-height: calc(80vh - 120px);
             overflow-y: auto;
@@ -1841,6 +1879,8 @@
         <span class="leaf">🌿</span> 心动解码器 Crush Meter <span class="leaf">🌸</span>
         <div class="footer-links">
             <a href="#" onclick="openPrivacyModal();return false;">🔐 隐私政策</a>
+            <span style="opacity:0.3;margin:0 6px;">|</span>
+            <a href="#" onclick="openFeedbackModal();return false;">📮 反馈与建议</a>
         </div>
     </footer>
 
@@ -1882,7 +1922,28 @@
                 </div>
                 <div class="privacy-section">
                     <h4>✅ 联系我们</h4>
-                    <p>如果你对隐私政策有任何疑问，或者想要完全删除自己的数据，请随时联系我们。</p>
+                    <p>如果你对隐私政策有任何疑问，或者想要完全删除自己的数据，请<a href="#" onclick="closePrivacyModal();openFeedbackModal();return false;" style="color:var(--red);text-decoration:underline;font-weight:700;">点击这里反馈</a>，我们会尽快处理。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 反馈弹窗 -->
+    <div class="modal-overlay" id="feedbackModal" style="display:none;">
+        <div class="modal feedback-modal">
+            <button class="modal-close" onclick="closeFeedbackModal()">&times;</button>
+            <div class="modal-header">
+                <h3>📮 反馈与建议</h3>
+                <p>有问题或建议？告诉我们，我们会认真看每一条</p>
+            </div>
+            <div class="modal-body">
+                <div class="feedback-form">
+                    <label class="feedback-label">你的联系方式（选填，方便回复）</label>
+                    <input type="text" class="modal-input" id="feedbackContact" placeholder="微信 / 邮箱 / 手机" maxlength="50">
+                    <label class="feedback-label">反馈内容 <span style="color:var(--red)">*</span></label>
+                    <textarea class="modal-input feedback-textarea" id="feedbackContent" placeholder="描述你遇到的问题或想法，越详细越好~" maxlength="2000"></textarea>
+                    <div class="feedback-hint" id="feedbackHint"></div>
+                    <button class="modal-btn modal-btn-primary" id="feedbackSubmitBtn" onclick="submitFeedback()">提交反馈</button>
                 </div>
             </div>
         </div>
@@ -2020,6 +2081,98 @@
         document.getElementById('privacyModal').addEventListener('click', function(e) {
             if (e.target === this) closePrivacyModal();
         });
+
+        // ---- 反馈弹窗 ----
+        function openFeedbackModal() {
+            document.getElementById('feedbackModal').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            requestAnimationFrame(() => {
+                document.getElementById('feedbackModal').classList.add('show');
+            });
+            // 重置表单
+            document.getElementById('feedbackContent').value = '';
+            document.getElementById('feedbackContact').value = '';
+            document.getElementById('feedbackHint').textContent = '';
+            document.getElementById('feedbackSubmitBtn').disabled = false;
+            document.getElementById('feedbackSubmitBtn').textContent = '提交反馈';
+        }
+
+        function closeFeedbackModal() {
+            document.getElementById('feedbackModal').classList.remove('show');
+            document.body.style.overflow = '';
+            setTimeout(() => {
+                document.getElementById('feedbackModal').style.display = 'none';
+            }, 250);
+        }
+
+        document.getElementById('feedbackModal').addEventListener('click', function(e) {
+            if (e.target === this) closeFeedbackModal();
+        });
+
+        async function submitFeedback() {
+            const content = document.getElementById('feedbackContent').value.trim();
+            const contact = document.getElementById('feedbackContact').value.trim();
+            const hint = document.getElementById('feedbackHint');
+            const btn = document.getElementById('feedbackSubmitBtn');
+
+            if (!content) {
+                hint.textContent = '请填写反馈内容';
+                return;
+            }
+            if (content.length > 2000) {
+                hint.textContent = '反馈内容不能超过2000字';
+                return;
+            }
+
+            hint.textContent = '';
+            btn.disabled = true;
+            btn.textContent = '提交中...';
+
+            try {
+                const res = await fetch('/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content, contact })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    // 显示成功状态
+                    const body = document.querySelector('#feedbackModal .modal-body');
+                    body.innerHTML = `
+                        <div class="feedback-success">
+                            <span class="emoji">🎉</span>
+                            <p>反馈已提交！感谢你的建议~</p>
+                            <p style="font-size:0.85rem;color:var(--text-light);margin-top:8px;font-weight:400;">我们会认真看每一条反馈</p>
+                        </div>
+                    `;
+                    setTimeout(() => {
+                        closeFeedbackModal();
+                        // 2秒后恢复表单
+                        setTimeout(() => {
+                            body.innerHTML = `
+                                <div class="feedback-form">
+                                    <label class="feedback-label">你的联系方式（选填，方便回复）</label>
+                                    <input type="text" class="modal-input" id="feedbackContact" placeholder="微信 / 邮箱 / 手机" maxlength="50">
+                                    <label class="feedback-label">反馈内容 <span style="color:var(--red)">*</span></label>
+                                    <textarea class="modal-input feedback-textarea" id="feedbackContent" placeholder="描述你遇到的问题或想法，越详细越好~" maxlength="2000"></textarea>
+                                    <div class="feedback-hint" id="feedbackHint"></div>
+                                    <button class="modal-btn modal-btn-primary" id="feedbackSubmitBtn" onclick="submitFeedback()">提交反馈</button>
+                                </div>
+                            `;
+                        }, 500);
+                    }, 1800);
+                } else {
+                    hint.textContent = data.error || '提交失败，请稍后重试';
+                    btn.disabled = false;
+                    btn.textContent = '提交反馈';
+                }
+            } catch (err) {
+                hint.textContent = '网络错误，请检查网络后重试';
+                btn.disabled = false;
+                btn.textContent = '提交反馈';
+            }
+        }
 
         function toggleAuthMode() {
             if (authMode === 'login') {
