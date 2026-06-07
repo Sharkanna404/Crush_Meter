@@ -2266,6 +2266,10 @@
 
         let currentResultData = null;
 
+        // 预加载二维码图片
+        const qrCodeImg = new Image();
+        qrCodeImg.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASIAAAEiAQAAAAB1xeIbAAAB7ElEQVR4nO2ZO47jMBBEXy8FOKQAH8BHkW62Z5obWEfZG4jhABRqgybH9iS7iUYfU4FA0i8oNKhyNWni38/06z8gaFSjDkQlK8/I4gMA6mq3la63oIIkSZAukpSB1MEgSZq30/UeVNneLGZjuoipB/8gxk11nZvqXmYhM90+jWG+bqzrHaiX2sdiNyJtret9qOLyAMSMjTEDUdJ9U13npjpgsTJJ12zDn4uMdM1Mvhw20fUOVAfxq71Ki2m6Zfec56Zrr+oPT6Xi+TYSVOJ+v9S432+m6/QUJcHHXEaDJN1jplh9lHTfq/pjU17xWudMLXtwy9Gd0Gq/ElV3+wzSHCTNQQxz8A7X11rtV6E6vKPqQ7bhYzEBaOoDRpzr/+1e1Z+Bst96GPynAYv5dLrlDXWdmyoZZ7KQDfzlu93AEKnL+1V/bModHT/MnMGDjbe5MePO3/x+bcpGjziL2Zg6IF1UzngOoP6AVOfJEkCkq8qZAiFDutbmdq/qj03V3gqe26qnoNk8ZzWqpnpJDI9Az1fZW1+7GuU5p5gMYMPH4hkTCBi0nPMzVBBEiWEG/wzuu9B1TuopYzJIZeQ/qGXMH6DqvdVij1RvZpd2b7Um9e3eSpDKTFCOd/ar/tjUy70VfktbR27/rbdq1Pmovw3oJv8NulaWAAAAAElFTkSuQmCC';
+
         function showShareCard() {
             if (!currentResultData) {
                 alert('请先完成一次分析');
@@ -2530,25 +2534,11 @@
             ctx.fillStyle = C.black;
             ctx.fillRect(60, bottomY, 960, 4);
 
-            // 二维码占位
+            // 二维码
             drawCard(W / 2 - 70, bottomY + 30, 140, 140, 8, C.white);
-            ctx.fillStyle = C.black;
-            for (let r = 0; r < 7; r++) {
-                for (let c = 0; c < 7; c++) {
-                    if (Math.random() > 0.45) {
-                        ctx.fillRect(W / 2 - 60 + c * 16, bottomY + 40 + r * 16, 14, 14);
-                    }
-                }
+            if (qrCodeImg.complete) {
+                ctx.drawImage(qrCodeImg, W / 2 - 70 + 10, bottomY + 30 + 10, 120, 120);
             }
-            // 定位角
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = C.black;
-            ctx.strokeRect(W / 2 - 56, bottomY + 44, 24, 24);
-            ctx.strokeRect(W / 2 + 24, bottomY + 44, 24, 24);
-            ctx.strokeRect(W / 2 - 56, bottomY + 124, 24, 24);
-            ctx.fillRect(W / 2 - 50, bottomY + 50, 12, 12);
-            ctx.fillRect(W / 2 + 30, bottomY + 50, 12, 12);
-            ctx.fillRect(W / 2 - 50, bottomY + 130, 12, 12);
 
             setFont(22, '700');
             ctx.textAlign = 'center';
