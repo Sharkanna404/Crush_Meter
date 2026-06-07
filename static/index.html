@@ -1517,6 +1517,108 @@
             position: relative;
             z-index: 1;
         }
+
+        /* 分享功能 */
+        .share-btn-wrap {
+            text-align: center;
+            margin: 24px 0 8px;
+        }
+        .share-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            background: var(--black);
+            color: var(--yellow);
+            border: 3px solid var(--black);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 var(--black);
+            transition: all 0.15s;
+        }
+        .share-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 var(--black);
+        }
+        .share-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0 var(--black);
+        }
+        .share-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: rgba(0,0,0,0.7);
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .share-modal.active {
+            display: flex;
+        }
+        .share-content {
+            background: var(--yellow);
+            border: 4px solid var(--black);
+            border-radius: 12px;
+            box-shadow: 8px 8px 0 var(--black);
+            max-width: 480px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .share-content canvas {
+            width: 100%;
+            height: auto;
+            border: 3px solid var(--black);
+            box-shadow: 4px 4px 0 var(--black);
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto;
+        }
+        .share-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .share-actions .btn-save {
+            padding: 10px 24px;
+            background: var(--red);
+            color: var(--white);
+            border: 3px solid var(--black);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 3px 3px 0 var(--black);
+            text-decoration: none;
+            display: inline-block;
+        }
+        .share-actions .btn-save:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0 var(--black);
+        }
+        .share-actions .btn-close {
+            padding: 10px 24px;
+            background: var(--white);
+            color: var(--black);
+            border: 3px solid var(--black);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 3px 3px 0 var(--black);
+        }
+        .share-actions .btn-close:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0 var(--black);
+        }
     </style>
 </head>
 <body>
@@ -1669,6 +1771,11 @@
             <!-- AI 免责声明 -->
             <div class="ai-disclaimer">
                 <p>💡 以下分析结果由 AI 生成，仅供参考和娱乐，不构成专业心理学或情感咨询建议。每段关系都是独一无二的，最了解对方的人始终是你自己。</p>
+            </div>
+
+            <!-- 分享按钮 -->
+            <div class="share-btn-wrap">
+                <button class="share-btn" onclick="showShareCard()">📤 生成分享海报</button>
             </div>
         </div>
 
@@ -2093,6 +2200,7 @@
         }
 
         function showResult(data) {
+            currentResultData = data;
             // 数字滚动动画
             animateNumber(document.getElementById('heartRate'), 0, data.heart_rate, 1200);
             document.getElementById('level').textContent = data.level;
@@ -2154,6 +2262,302 @@
             setTimeout(() => {
                 document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 100);
+        }
+
+        let currentResultData = null;
+
+        function showShareCard() {
+            if (!currentResultData) {
+                alert('请先完成一次分析');
+                return;
+            }
+            const canvas = generateShareCard(currentResultData);
+            const modal = document.getElementById('shareModal');
+            const downloadLink = document.getElementById('shareDownload');
+            downloadLink.href = canvas.toDataURL('image/png');
+            modal.classList.add('active');
+        }
+
+        function closeShareModal() {
+            document.getElementById('shareModal').classList.remove('active');
+        }
+
+        document.getElementById('shareModal').addEventListener('click', function(e) {
+            if (e.target === this) closeShareModal();
+        });
+
+        function wrapText(ctx, text, maxWidth) {
+            const chars = text.split('');
+            const lines = [];
+            let currentLine = '';
+            for (let i = 0; i < chars.length; i++) {
+                const testLine = currentLine + chars[i];
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > maxWidth && currentLine !== '') {
+                    lines.push(currentLine);
+                    currentLine = chars[i];
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
+        function generateShareCard(data) {
+            const W = 1080, H = 1920;
+            const canvas = document.getElementById('shareCanvas');
+            canvas.width = W;
+            canvas.height = H;
+            const ctx = canvas.getContext('2d');
+
+            const C = {
+                bg: '#FFCC00',
+                black: '#1a1a1a',
+                red: '#FF3B30',
+                white: '#ffffff',
+                yellow: '#FFCC00',
+                pink: '#FFB6C1',
+                green: '#34C759',
+                orange: '#FF9500',
+                blue: '#007AFF'
+            };
+
+            const setFont = (size, weight, family) => {
+                ctx.font = `${weight} ${size}px ${family || "'Noto Sans SC', sans-serif"}`;
+            };
+
+            const roundRect = (x, y, w, h, r, fill, stroke) => {
+                ctx.beginPath();
+                ctx.moveTo(x + r, y);
+                ctx.lineTo(x + w - r, y);
+                ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+                ctx.lineTo(x + w, y + h - r);
+                ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                ctx.lineTo(x + r, y + h);
+                ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+                ctx.lineTo(x, y + r);
+                ctx.quadraticCurveTo(x, y, x + r, y);
+                ctx.closePath();
+                if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+                if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 4; ctx.stroke(); }
+            };
+
+            const drawCard = (x, y, w, h, r, bg) => {
+                ctx.fillStyle = C.black;
+                ctx.beginPath();
+                ctx.moveTo(x + r + 6, y + 6);
+                ctx.lineTo(x + w - r + 6, y + 6);
+                ctx.quadraticCurveTo(x + w + 6, y + 6, x + w + 6, y + r + 6);
+                ctx.lineTo(x + w + 6, y + h - r + 6);
+                ctx.quadraticCurveTo(x + w + 6, y + h + 6, x + w - r + 6, y + h + 6);
+                ctx.lineTo(x + r + 6, y + h + 6);
+                ctx.quadraticCurveTo(x + 6, y + h + 6, x + 6, y + h - r + 6);
+                ctx.lineTo(x + 6, y + r + 6);
+                ctx.quadraticCurveTo(x + 6, y + 6, x + r + 6, y + 6);
+                ctx.closePath();
+                ctx.fill();
+                roundRect(x, y, w, h, r, bg, C.black);
+            };
+
+            // 1. 背景
+            ctx.fillStyle = C.bg;
+            ctx.fillRect(0, 0, W, H);
+
+            // 装饰点
+            for (let i = 0; i < 30; i++) {
+                ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                const sx = Math.random() * W;
+                const sy = Math.random() * H;
+                const ss = Math.random() * 8 + 2;
+                ctx.fillRect(sx, sy, ss, ss);
+            }
+
+            // 2. 顶部装饰条
+            ctx.fillStyle = C.black;
+            ctx.fillRect(60, 60, 960, 6);
+
+            // 3. 标题
+            setFont(72, '900');
+            ctx.fillStyle = C.black;
+            ctx.textAlign = 'center';
+            ctx.fillText('Crush Meter', W / 2, 150);
+
+            setFont(36, '700');
+            ctx.fillText('心动解码报告', W / 2, 205);
+
+            // 小装饰
+            ctx.fillStyle = C.red;
+            ctx.beginPath();
+            ctx.arc(W / 2 - 180, 185, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(W / 2 + 180, 185, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 4. Crush 信息
+            const crushName = data.crush_name ? data.crush_name.charAt(0) + '**' : '**';
+            setFont(40, '700');
+            ctx.fillStyle = C.black;
+            ctx.fillText(`和「${crushName}」的心动指数`, W / 2, 300);
+
+            // 5. 心动指数大数字卡片
+            drawCard(300, 340, 480, 200, 16, C.white);
+            setFont(150, '900');
+            ctx.fillStyle = C.red;
+            ctx.fillText(String(data.heart_rate || 0), W / 2, 500);
+
+            setFont(28, '700');
+            ctx.fillStyle = C.black;
+            ctx.fillText('heart rate', W / 2, 540);
+
+            // 6. 阶段标签
+            const level = data.level || '未知';
+            const levelColors = {
+                '陌生期': '#E0E0E0',
+                '观察期': '#B3E5FC',
+                '暗示期': '#FFCCBC',
+                '暗暖心动期': '#FFD600',
+                '热恋期': '#FF5252',
+                '稳定期': '#C8E6C9',
+                '倦怠期': '#D7CCC8',
+                '危险期': '#FF1744',
+            };
+            const levelBg = levelColors[level] || C.yellow;
+
+            setFont(40, '900');
+            const levelWidth = ctx.measureText(level).width + 64;
+            drawCard((W - levelWidth) / 2, 580, levelWidth, 76, 12, levelBg);
+            ctx.fillStyle = C.black;
+            ctx.fillText(level, W / 2, 630);
+
+            // 7. 五维分析
+            setFont(32, '900');
+            ctx.textAlign = 'left';
+            ctx.fillStyle = C.black;
+            ctx.fillText('📊 五维分析', 80, 740);
+            ctx.fillRect(80, 758, 920, 4);
+
+            const dimMap = {
+                'initiative': '主动性',
+                'response': '回应度',
+                'emotion': '情绪价值',
+                'exclusivity': '专属性',
+                'consistency': '一致性',
+            };
+
+            const dimColors = [C.red, C.orange, C.yellow, C.green, C.blue];
+            const dims = data.dimensions || {};
+            let dimY = 800;
+            Object.entries(dimMap).forEach(([key, label], i) => {
+                const score = dims[key]?.score || 0;
+                setFont(26, '700');
+                ctx.fillStyle = C.black;
+                ctx.fillText(label, 80, dimY + 28);
+
+                roundRect(200, dimY, 700, 40, 8, C.white, C.black);
+                const fillW = Math.max(4, (score / 100) * 692);
+                ctx.fillStyle = dimColors[i % dimColors.length];
+                roundRect(204, dimY + 4, fillW, 32, 6, dimColors[i % dimColors.length]);
+
+                setFont(24, '900');
+                ctx.fillStyle = C.black;
+                ctx.textAlign = 'right';
+                ctx.fillText(String(score), 910, dimY + 30);
+                ctx.textAlign = 'left';
+
+                dimY += 68;
+            });
+
+            // 8. 关键信号
+            setFont(32, '900');
+            ctx.fillStyle = C.black;
+            ctx.fillText('💡 关键信号', 80, dimY + 40);
+            ctx.fillRect(80, dimY + 58, 920, 4);
+
+            let sigY = dimY + 100;
+            const signals = (data.key_signals || []).slice(0, 3);
+            signals.forEach((sig, i) => {
+                ctx.beginPath();
+                ctx.arc(110, sigY + 6, 22, 0, Math.PI * 2);
+                ctx.fillStyle = C.black;
+                ctx.fill();
+                ctx.fillStyle = C.white;
+                ctx.textAlign = 'center';
+                setFont(24, '900');
+                ctx.fillText(String(i + 1), 110, sigY + 14);
+                ctx.textAlign = 'left';
+
+                setFont(28, '700');
+                ctx.fillStyle = C.black;
+                const maxSigW = 860;
+                const sigLines = wrapText(ctx, sig, maxSigW);
+                sigLines.slice(0, 2).forEach((line, li) => {
+                    ctx.fillText(line, 160, sigY + 8 + li * 40);
+                });
+                sigY += Math.max(60, sigLines.length * 40);
+            });
+
+            // 9. AI 建议
+            setFont(32, '900');
+            ctx.fillStyle = C.black;
+            ctx.fillText('🌱 AI 建议', 80, sigY + 40);
+            ctx.fillRect(80, sigY + 58, 920, 4);
+
+            const advice = data.advice || '暂无建议';
+            setFont(26, '700');
+            ctx.fillStyle = C.black;
+            const adviceLines = wrapText(ctx, advice, 920);
+            let adviceY = sigY + 100;
+            adviceLines.slice(0, 3).forEach(line => {
+                ctx.fillText(line, 80, adviceY);
+                adviceY += 44;
+            });
+
+            // 10. 风险预警（如果有）
+            if (data.risk_warning) {
+                setFont(26, '700');
+                ctx.fillStyle = C.red;
+                const riskLines = wrapText(ctx, '⚠️ ' + data.risk_warning, 920);
+                riskLines.slice(0, 2).forEach(line => {
+                    ctx.fillText(line, 80, adviceY);
+                    adviceY += 44;
+                });
+            }
+
+            // 11. 底部装饰
+            const bottomY = Math.min(adviceY + 60, H - 220);
+            ctx.fillStyle = C.black;
+            ctx.fillRect(60, bottomY, 960, 4);
+
+            // 二维码占位
+            drawCard(W / 2 - 70, bottomY + 30, 140, 140, 8, C.white);
+            ctx.fillStyle = C.black;
+            for (let r = 0; r < 7; r++) {
+                for (let c = 0; c < 7; c++) {
+                    if (Math.random() > 0.45) {
+                        ctx.fillRect(W / 2 - 60 + c * 16, bottomY + 40 + r * 16, 14, 14);
+                    }
+                }
+            }
+            // 定位角
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = C.black;
+            ctx.strokeRect(W / 2 - 56, bottomY + 44, 24, 24);
+            ctx.strokeRect(W / 2 + 24, bottomY + 44, 24, 24);
+            ctx.strokeRect(W / 2 - 56, bottomY + 124, 24, 24);
+            ctx.fillRect(W / 2 - 50, bottomY + 50, 12, 12);
+            ctx.fillRect(W / 2 + 30, bottomY + 50, 12, 12);
+            ctx.fillRect(W / 2 - 50, bottomY + 130, 12, 12);
+
+            setFont(22, '700');
+            ctx.textAlign = 'center';
+            ctx.fillStyle = C.black;
+            ctx.fillText('crushmeter.site', W / 2, bottomY + 200);
+            setFont(20, '700');
+            ctx.fillText('扫码测测你和 TA 的心动指数', W / 2, bottomY + 230);
+
+            return canvas;
         }
 
         async function loadHistory() {
@@ -3352,5 +3756,16 @@
         }
 
     </script>
+
+    <!-- 分享海报弹窗 -->
+    <div class="share-modal" id="shareModal">
+        <div class="share-content">
+            <canvas id="shareCanvas"></canvas>
+            <div class="share-actions">
+                <a id="shareDownload" class="btn-save" download="crush-meter-report.png">💾 保存海报</a>
+                <button class="btn-close" onclick="closeShareModal()">关闭</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
