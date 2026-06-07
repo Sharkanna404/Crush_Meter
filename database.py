@@ -202,6 +202,8 @@ def _safe_json_loads(val, default=None):
 def _row_to_dict(row: sqlite3.Row) -> dict:
     return {
         "id": row["id"],
+        "user_id": row["user_id"],
+        "guest_uid": row["guest_uid"],
         "crush_name": row["crush_name"],
         "chat_preview": row["chat_preview"],
         "heart_rate": row["heart_rate"],
@@ -281,7 +283,13 @@ def get_analysis_by_id(analysis_id: int) -> dict:
 
 def delete_analysis(analysis_id: int, user_id: int = None, guest_uid: str = None) -> bool:
     conn = get_conn()
-    if user_id:
+    if user_id and guest_uid:
+        # 已登录且有 guest_uid：可删除自己的记录或之前的访客记录
+        cursor = conn.execute(
+            "DELETE FROM analyses WHERE id = ? AND (user_id = ? OR guest_uid = ?)",
+            (analysis_id, user_id, guest_uid)
+        )
+    elif user_id:
         cursor = conn.execute(
             "DELETE FROM analyses WHERE id = ? AND user_id = ?",
             (analysis_id, user_id)

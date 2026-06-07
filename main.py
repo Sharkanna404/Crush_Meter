@@ -76,11 +76,6 @@ api_key = os.getenv("DEEPSEEK_API_KEY", "")
 base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
 model_name = "deepseek-chat"
 
-# 尝试从本地 .api_key 文件读取（用于测试，不提交到 git）
-API_KEY_FILE = Path(__file__).parent / ".api_key"
-if not api_key and API_KEY_FILE.exists():
-    api_key = API_KEY_FILE.read_text().strip()
-
 # 如果环境变量没有，尝试从 config 读取其他配置
 if not api_key and CONFIG_PATH.exists():
     try:
@@ -96,6 +91,20 @@ if not api_key and CONFIG_PATH.exists():
 
 # 模拟模式（API 不可用时使用测试数据）
 MOCK_MODE = os.getenv("HEART_DECODER_MOCK", "false").lower() == "true"
+
+# ---- 简单限流（基于内存，防止被刷）----
+from collections import defaultdict
+import time
+_rate_limit_store = defaultdict(list)  # ip -> [timestamp, ...]
+RATE_LIMIT_PER_MINUTE = 10  # 每个 IP 每分钟最多 10 次调用
+
+def _check_rate_limit(client_ip: str) -> bool:
+    now = time.time()
+    _rate_limit_store[client_ip] = [t for t in _rate_limit_store[client_ip] if now - t < 60]
+    if len(_rate_limit_store[client_ip]) >= RATE_LIMIT_PER_MINUTE:
+        return False
+    _rate_limit_store[client_ip].append(now)
+    return True
 
 
 def generate_mock_result(crush_name: str, chat_text: str) -> dict:
@@ -787,12 +796,17 @@ async def reorder_images(
 
 @app.post("/analyze")
 async def analyze(
+    request: Request,
     crush_name: str = Form(...),
     chat_text: str = Form(""),
     ocr_text: str = Form(""),
     authorization: str = Header(None),
     x_guest_uid: str = Header(None)
 ):
+    # 限流检查
+    client_ip = request.headers.get("x-forwarded-for", request.client.host)
+    if not _check_rate_limit(client_ip):
+        return JSONResponse({"error": "请求过于频繁，请稍后再试"}, status_code=429)
     # 合并 OCR 文本和手动输入
     combined_text = chat_text.strip()
     if ocr_text.strip():
@@ -914,7 +928,7 @@ async def delete_analysis_api(
     """删除一条历史分析记录"""
     user = get_current_user(authorization)
     user_id = user["id"] if user else None
-    guest_uid = x_guest_uid if not user else None
+    guest_uid = x_guest_uid
 
     if not user_id and not guest_uid:
         return JSONResponse({"error": "未登录"}, status_code=401)
@@ -924,9 +938,13 @@ async def delete_analysis_api(
     if not record:
         return JSONResponse({"error": "记录不存在"}, status_code=404)
 
-    if user_id and record.get("user_id") != user_id:
-        return JSONResponse({"error": "无权删除"}, status_code=403)
-    if guest_uid and record.get("guest_uid") != guest_uid:
+    has_permission = False
+    if user_id and record.get("user_id") == user_id:
+        has_permission = True
+    if guest_uid and record.get("guest_uid") == guest_uid:
+        has_permission = True
+
+    if not has_permission:
         return JSONResponse({"error": "无权删除"}, status_code=403)
 
     success = delete_analysis(analysis_id, user_id=user_id, guest_uid=guest_uid)
@@ -979,4 +997,4 @@ async def timeline(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="127.0.0.1", port=8080)

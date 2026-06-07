@@ -1822,15 +1822,15 @@
 
         function getAuthHeaders() {
             const token = localStorage.getItem('heart_token');
+            const guestUid = localStorage.getItem('heart_guest_uid');
+            const headers = {};
             if (token) {
-                return { 'Authorization': 'Bearer ' + token };
+                headers['Authorization'] = 'Bearer ' + token;
             }
-            let guestUid = localStorage.getItem('heart_guest_uid');
-            if (!guestUid) {
-                guestUid = 'guest_' + Math.random().toString(36).substring(2, 15);
-                localStorage.setItem('heart_guest_uid', guestUid);
+            if (guestUid) {
+                headers['X-Guest-UID'] = guestUid;
             }
-            return { 'X-Guest-UID': guestUid };
+            return headers;
         }
 
         async function initAuth() {
