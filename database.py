@@ -279,6 +279,27 @@ def get_analysis_by_id(analysis_id: int) -> dict:
     return _row_to_dict(row)
 
 
+def delete_analysis(analysis_id: int, user_id: int = None, guest_uid: str = None) -> bool:
+    conn = get_conn()
+    if user_id:
+        cursor = conn.execute(
+            "DELETE FROM analyses WHERE id = ? AND user_id = ?",
+            (analysis_id, user_id)
+        )
+    elif guest_uid:
+        cursor = conn.execute(
+            "DELETE FROM analyses WHERE id = ? AND guest_uid = ?",
+            (analysis_id, guest_uid)
+        )
+    else:
+        conn.close()
+        return False
+    deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
+
+
 # ---- 图片/OCR 相关 ----
 
 def save_image(filename: str, original_name: str, user_id: int = None, guest_uid: str = None) -> int:

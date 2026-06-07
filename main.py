@@ -22,6 +22,7 @@ from openai import OpenAI
 from prompt import build_analysis_messages
 from database import (
     init_db, save_analysis, get_history, get_trend, get_timeline,
+    get_analysis_by_id, delete_analysis,
     create_user, get_user_by_username, get_user_by_id,
     generate_guest_uid, migrate_guest_to_user,
     save_image, get_images, get_image_by_id, delete_image,
@@ -902,6 +903,36 @@ async def history(
 
     records = get_history(user_id=user_id, guest_uid=guest_uid, limit=limit)
     return records
+
+
+@app.delete("/analysis/{analysis_id}")
+async def delete_analysis_api(
+    analysis_id: int,
+    authorization: str = Header(None),
+    x_guest_uid: str = Header(None)
+):
+    """删除一条历史分析记录"""
+    user = get_current_user(authorization)
+    user_id = user["id"] if user else None
+    guest_uid = x_guest_uid if not user else None
+
+    if not user_id and not guest_uid:
+        return JSONResponse({"error": "未登录"}, status_code=401)
+
+    # 验证记录存在且属于当前用户
+    record = get_analysis_by_id(analysis_id)
+    if not record:
+        return JSONResponse({"error": "记录不存在"}, status_code=404)
+
+    if user_id and record.get("user_id") != user_id:
+        return JSONResponse({"error": "无权删除"}, status_code=403)
+    if guest_uid and record.get("guest_uid") != guest_uid:
+        return JSONResponse({"error": "无权删除"}, status_code=403)
+
+    success = delete_analysis(analysis_id, user_id=user_id, guest_uid=guest_uid)
+    if success:
+        return {"success": True, "message": "删除成功"}
+    return JSONResponse({"error": "删除失败"}, status_code=500)
 
 
 @app.get("/trend")

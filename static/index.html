@@ -608,6 +608,34 @@
             color: var(--text-light);
             font-weight: 700;
         }
+        .history-item .h-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-left: 12px;
+        }
+        .history-item .h-delete {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 3px solid var(--black);
+            background: var(--white);
+            color: var(--red);
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            box-shadow: 2px 2px 0 var(--black);
+            flex-shrink: 0;
+        }
+        .history-item .h-delete:hover {
+            background: var(--red);
+            color: var(--white);
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0 var(--black);
+        }
 
         .empty-state {
             text-align: center;
@@ -1757,12 +1785,12 @@
     <div class="modal-overlay" id="confirmClearModal">
         <div class="modal confirm-modal">
             <div class="modal-header">
-                <h3>🗑️ 确认清空？</h3>
-                <p>清空后无法恢复，确定要清空聊天记录吗？</p>
+                <h3 id="confirmTitle">🗑️ 确认清空？</h3>
+                <p id="confirmDesc">清空后无法恢复，确定要清空聊天记录吗？</p>
             </div>
             <div class="modal-body confirm-body">
                 <button class="confirm-btn confirm-btn-cancel" onclick="closeConfirmClearModal()">取消</button>
-                <button class="confirm-btn confirm-btn-ok" onclick="doClearChat()">确认清空</button>
+                <button class="confirm-btn confirm-btn-ok" id="confirmOkBtn" onclick="doConfirmAction()">确认清空</button>
             </div>
         </div>
     </div>
@@ -2148,13 +2176,17 @@
                 data.forEach(item => {
                     const div = document.createElement('div');
                     div.className = 'history-item';
+                    div.dataset.id = item.id;
                     const date = new Date(item.created_at).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
                     div.innerHTML = `
-                        <div>
+                        <div style="flex:1;min-width:0;">
                             <div class="h-name">${item.crush_name}</div>
                             <div class="h-date">${date} · ${item.level}</div>
                         </div>
-                        <div class="h-score">${item.heart_rate}</div>
+                        <div class="h-actions">
+                            <div class="h-score">${item.heart_rate}</div>
+                            <button class="h-delete" title="删除" onclick="event.stopPropagation();promptDeleteHistory(${item.id}, '${item.crush_name.replace(/'/g, "\\'")}')">🗑️</button>
+                        </div>
                     `;
                     div.onclick = () => {
                         currentEcgCrush = item.crush_name;
@@ -2610,10 +2642,19 @@
         function clearChatText() {
             const ta = document.getElementById('chatText');
             if (ta && ta.value.trim().length > 0) {
-                showConfirmClearModal();
+                showConfirmModal('🗑️ 确认清空？', '清空后无法恢复，确定要清空聊天记录吗？', '确认清空', () => {
+                    ta.value = '';
+                    ta.focus();
+                });
             }
         }
-        function showConfirmClearModal() {
+
+        let confirmActionCallback = null;
+        function showConfirmModal(title, desc, okText, callback) {
+            confirmActionCallback = callback;
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmDesc').textContent = desc;
+            document.getElementById('confirmOkBtn').textContent = okText;
             const modal = document.getElementById('confirmClearModal');
             modal.classList.add('show');
             document.body.style.overflow = 'hidden';
@@ -2622,15 +2663,34 @@
             const modal = document.getElementById('confirmClearModal');
             modal.classList.remove('show');
             document.body.style.overflow = '';
+            confirmActionCallback = null;
         }
-        function doClearChat() {
-            const ta = document.getElementById('chatText');
-            if (ta) {
-                ta.value = '';
-                ta.focus();
-            }
+        function doConfirmAction() {
+            if (confirmActionCallback) confirmActionCallback();
             closeConfirmClearModal();
         }
+
+        // 删除历史分析
+        function promptDeleteHistory(analysisId, crushName) {
+            showConfirmModal('🗑️ 确认删除？', `确定要删除对「${crushName}」的这条分析记录吗？删除后无法恢复。`, '确认删除', async () => {
+                try {
+                    const res = await fetch(`/analysis/${analysisId}`, {
+                        method: 'DELETE',
+                        headers: getAuthHeaders()
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        loadHistory();
+                    } else {
+                        alert(result.error || '删除失败');
+                    }
+                } catch (err) {
+                    console.error('deleteHistory error', err);
+                    alert('删除失败，请稍后重试');
+                }
+            });
+        }
+
         // 点击遮罩层关闭确认弹窗
         document.getElementById('confirmClearModal').addEventListener('click', function(e) {
             if (e.target === this) closeConfirmClearModal();
