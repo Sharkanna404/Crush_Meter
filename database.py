@@ -556,4 +556,23 @@ def get_feedbacks(limit: int = 50) -> list:
         for row in rows
     ]
 
+
+def get_feedback_by_id(feedback_id: int) -> dict:
+    """通过 ID 查询单条反馈详情"""
+    conn = get_conn()
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT * FROM feedbacks WHERE id = ?",
+        (feedback_id,)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "id": row["id"],
+        "contact": row["contact"],
+        "content": row["content"],
+        "created_at": row["created_at"]
+    }
+
  

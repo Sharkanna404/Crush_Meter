@@ -23,7 +23,7 @@ from openai import OpenAI
 from prompt import build_analysis_messages
 from database import (
     init_db, save_analysis, get_history, get_trend, get_timeline,
-    get_analysis_by_id, delete_analysis, save_feedback,
+    get_analysis_by_id, delete_analysis, save_feedback, get_feedback_by_id,
     create_user, get_user_by_username, get_user_by_id,
     generate_guest_uid, migrate_guest_to_user,
     save_image, get_images, get_image_by_id, delete_image,
@@ -1022,64 +1022,96 @@ async def feedback_api(body: dict):
 
 
 def _notify_feishu(feedback_id: int, content: str, contact: str):
-    """推送反馈通知到飞书群"""
-    try:
-        # 截断过长内容
-        display_content = content if len(content) <= 300 else content[:300] + "..."
-        display_contact = contact or "未填写"
+    """推送反馈通知到飞书群（带重试机制）"""
+    import time
 
-        payload = {
-            "msg_type": "interactive",
-            "card": {
-                "config": {"wide_screen_mode": True},
-                "header": {
-                    "title": {
-                        "tag": "plain_text",
-                        "content": "📨 新的用户反馈"
-                    },
-                    "template": "red"
+    display_contact = contact or "未填写"
+    # 飞书交互卡片单条文本限制约 4096 字符，留出空间给其他字段
+    MAX_CARD_TEXT = 2000
+    is_truncated = len(content) > MAX_CARD_TEXT
+    display_content = content if not is_truncated else content[:MAX_CARD_TEXT] + "\n\n...内容已截断，完整版请通过管理后台查看"
+
+    payload = {
+        "msg_type": "interactive",
+        "card": {
+            "config": {"wide_screen_mode": True},
+            "header": {
+                "title": {
+                    "tag": "plain_text",
+                    "content": "📨 新的用户反馈"
                 },
-                "elements": [
-                    {
-                        "tag": "div",
-                        "text": {
-                            "tag": "lark_md",
-                            "content": f"**反馈编号:** #{feedback_id}\n**联系方式:** {display_contact}"
-                        }
-                    },
-                    {"tag": "hr"},
-                    {
-                        "tag": "div",
-                        "text": {
-                            "tag": "lark_md",
-                            "content": display_content
-                        }
-                    },
-                    {"tag": "hr"},
-                    {
-                        "tag": "note",
-                        "elements": [
-                            {
-                                "tag": "plain_text",
-                                "content": f"提交时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                            }
-                        ]
+                "template": "red"
+            },
+            "elements": [
+                {
+                    "tag": "div",
+                    "text": {
+                        "tag": "lark_md",
+                        "content": f"**反馈编号:** #{feedback_id}\n**联系方式:** {display_contact}"
                     }
-                ]
-            }
+                },
+                {"tag": "hr"},
+                {
+                    "tag": "div",
+                    "text": {
+                        "tag": "lark_md",
+                        "content": display_content
+                    }
+                },
+                {"tag": "hr"},
+                {
+                    "tag": "note",
+                    "elements": [
+                        {
+                            "tag": "plain_text",
+                            "content": f"提交时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        }
+                    ]
+                }
+            ]
         }
+    }
 
-        req = urllib.request.Request(
-            FEISHU_WEBHOOK,
-            data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
-            headers={"Content-Type": "application/json"},
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            resp.read()
-    except Exception as e:
-        # 推送失败不影响主业务，只打印日志
-        print(f"[Feishu Notify Error] {e}")
+    data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(
+                FEISHU_WEBHOOK,
+                data=data,
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                resp.read()
+            return  # 成功后直接返回
+        except Exception as e:
+            print(f"[Feishu Notify Error] attempt {attempt + 1}/3: {e}")
+            if attempt < 2:
+                time.sleep(2)
+            else:
+                print(f"[Feishu Notify Error] 所有重试均失败，已放弃推送反馈 #{feedback_id}")
+
+
+# ---- 管理后台（简单认证）----
+ADMIN_KEY = os.getenv("HEART_ADMIN_KEY", "")
+
+@app.get("/admin/feedback")
+async def admin_get_feedback(id: int = None, key: str = ""):
+    """管理员查询反馈详情（需要 admin key）"""
+    if not ADMIN_KEY:
+        return JSONResponse({"error": "管理后台未配置"}, status_code=503)
+    if key != ADMIN_KEY:
+        return JSONResponse({"error": "权限不足"}, status_code=403)
+
+    if id:
+        feedback = get_feedback_by_id(id)
+        if not feedback:
+            return JSONResponse({"error": "反馈不存在"}, status_code=404)
+        return feedback
+    else:
+        from database import get_feedbacks
+        return {"feedbacks": get_feedbacks(limit=100)}
 
 
 if __name__ == "__main__":
