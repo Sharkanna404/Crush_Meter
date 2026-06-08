@@ -10,6 +10,7 @@ import bcrypt
 import jwt
 import shutil
 import uuid
+import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -33,6 +34,9 @@ from database import (
 JWT_SECRET = os.getenv("JWT_SECRET", "heart_decoder_secret_2026")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_DAYS = 30
+
+# 飞书机器人 Webhook（用于推送用户反馈通知）
+FEISHU_WEBHOOK = "https://open.feishu.cn/open-apis/bot/v2/hook/8e3b275d-1888-4b08-93a8-788b383a5011"
 
 # 认证工具函数
 def create_access_token(user_id: int) -> str:
@@ -1010,9 +1014,72 @@ async def feedback_api(body: dict):
 
     try:
         feedback_id = save_feedback(content=content, contact=contact)
+        # 异步推送飞书通知（不阻塞响应）
+        _notify_feishu(feedback_id, content, contact)
         return {"success": True, "message": "反馈已提交，感谢你的建议！", "id": feedback_id}
     except Exception as e:
         return JSONResponse({"error": f"提交失败：{str(e)}"}, status_code=500)
+
+
+def _notify_feishu(feedback_id: int, content: str, contact: str):
+    """推送反馈通知到飞书群"""
+    try:
+        # 截断过长内容
+        display_content = content if len(content) <= 300 else content[:300] + "..."
+        display_contact = contact or "未填写"
+
+        payload = {
+            "msg_type": "interactive",
+            "card": {
+                "config": {"wide_screen_mode": True},
+                "header": {
+                    "title": {
+                        "tag": "plain_text",
+                        "content": "📨 新的用户反馈"
+                    },
+                    "template": "red"
+                },
+                "elements": [
+                    {
+                        "tag": "div",
+                        "text": {
+                            "tag": "lark_md",
+                            "content": f"**反馈编号:** #{feedback_id}\n**联系方式:** {display_contact}"
+                        }
+                    },
+                    {"tag": "hr"},
+                    {
+                        "tag": "div",
+                        "text": {
+                            "tag": "lark_md",
+                            "content": display_content
+                        }
+                    },
+                    {"tag": "hr"},
+                    {
+                        "tag": "note",
+                        "elements": [
+                            {
+                                "tag": "plain_text",
+                                "content": f"提交时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+
+        req = urllib.request.Request(
+            FEISHU_WEBHOOK,
+            data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            resp.read()
+    except Exception as e:
+        # 推送失败不影响主业务，只打印日志
+        print(f"[Feishu Notify Error] {e}")
 
 
 if __name__ == "__main__":
