@@ -3599,35 +3599,30 @@
         function initHeaderEcg() {
             const canvas = document.getElementById('headerEcgCanvas');
             if (!canvas) return;
-            // 避免重复初始化
-            if (canvas.dataset.ecgReady === '1') return;
-            canvas.dataset.ecgReady = '1';
             const ctx = canvas.getContext('2d');
 
             let W = 0, H = 0;
             function resize() {
-                const rect = canvas.parentElement.getBoundingClientRect();
-                const w = Math.max(rect.width, window.innerWidth * 0.5) || window.innerWidth;
-                const h = Math.max(rect.height, window.innerHeight * 0.3) || (window.innerHeight * 0.65);
-                W = canvas.width = Math.floor(w * window.devicePixelRatio);
-                H = canvas.height = Math.floor(h * 0.65 * window.devicePixelRatio);
+                const rect = canvas.parentElement ? canvas.parentElement.getBoundingClientRect() : {width:0,height:0};
+                const w = rect.width > 10 ? rect.width : window.innerWidth;
+                const h = rect.height > 10 ? rect.height : (window.innerHeight * 0.65);
+                const dpr = window.devicePixelRatio || 1;
+                W = canvas.width = Math.max(100, Math.floor(w * dpr));
+                H = canvas.height = Math.max(100, Math.floor(h * 0.65 * dpr));
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
-                ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-                W = Math.floor(W / window.devicePixelRatio);
-                H = Math.floor(H / window.devicePixelRatio);
+                ctx.scale(dpr, dpr);
+                W = Math.floor(W / dpr);
+                H = Math.floor(H / dpr);
             }
             resize();
             window.addEventListener('resize', resize);
-            // 页面完全加载后再次确认尺寸
-            window.addEventListener('load', () => { resize(); });
-            // 多重延迟保险
-            setTimeout(() => { resize(); }, 50);
-            setTimeout(() => { resize(); }, 250);
-            setTimeout(() => { resize(); }, 800);
+            window.addEventListener('load', resize);
+            // 多次延迟重试，确保尺寸正确
+            [50, 150, 400, 800, 1500].forEach(t => setTimeout(resize, t));
 
             const maxPoints = 300;
             const data = [];
-            const pulseTypes = []; // 每个点对应的心跳类型
+            const pulseTypes = [];
             for (let i = 0; i < maxPoints; i++) { data.push(0); pulseTypes.push(null); }
 
             let tick = 0;
@@ -3644,18 +3639,15 @@
 
             function generateNextValue() {
                 tick++;
-
                 if (tick >= nextBeat) {
                     beatPhase = 1;
                     currentBeatType = pickBeatType();
                     nextBeat = tick + 42 + Math.floor(Math.random() * 30);
                 }
-
                 let val = 0;
                 if (beatPhase > 0) {
                     let phases;
                     const r = () => 0.6 + Math.random() * 0.3;
-
                     if (currentBeatType === 'narrow') {
                         phases = [
                             { t: 1, v: -0.06 }, { t: 2, v: 0.5 }, { t: 3, v: -0.18 },
@@ -3682,7 +3674,6 @@
                     beatPhase++;
                     if (beatPhase > 20) beatPhase = 0;
                 }
-
                 val += (Math.random() - 0.5) * 0.025;
                 lastPulseType = currentBeatType;
                 return val;
@@ -3710,7 +3701,6 @@
                 const amplitude = H * 0.38;
                 const stepX = W / maxPoints;
 
-                // 主心电图线
                 ctx.lineJoin = 'round';
                 ctx.lineCap = 'round';
 
@@ -3758,7 +3748,11 @@
 
                 requestAnimationFrame(draw);
             }
-            requestAnimationFrame(draw);
+            // draw 循环只启动一次
+            if (!window.__ecgDrawStarted) {
+                window.__ecgDrawStarted = true;
+                requestAnimationFrame(draw);
+            }
 
             // 标题装饰条动态更新
             const metaBpm = document.querySelector('.meta-bpm');
@@ -3771,12 +3765,12 @@
             }, 1800);
         }
 
-        // 等待 DOM 和样式就绪后初始化心电图
-        if (document.readyState === 'complete') {
-            initHeaderEcg();
-        } else {
+        // 直接初始化，多重保险
+        initHeaderEcg();
+        if (document.readyState !== 'complete') {
             window.addEventListener('load', initHeaderEcg);
         }
+        [100, 300, 600, 1200].forEach(t => setTimeout(initHeaderEcg, t));
 
 // ===== 期间特效系统（背景色 + 粒子 + 烟花）=====
         const STAGE_CONFIG = {
