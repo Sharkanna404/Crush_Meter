@@ -3596,22 +3596,34 @@
         
 
         // ===== 首屏心电图背景动画 =====
-        (function initHeaderEcg() {
+        function initHeaderEcg() {
             const canvas = document.getElementById('headerEcgCanvas');
             if (!canvas) return;
+            // 避免重复初始化
+            if (canvas.dataset.ecgReady === '1') return;
+            canvas.dataset.ecgReady = '1';
             const ctx = canvas.getContext('2d');
 
-            let W, H;
+            let W = 0, H = 0;
             function resize() {
                 const rect = canvas.parentElement.getBoundingClientRect();
-                W = canvas.width = rect.width * window.devicePixelRatio;
-                H = canvas.height = rect.height * 0.65 * window.devicePixelRatio;
+                const w = Math.max(rect.width, window.innerWidth * 0.5) || window.innerWidth;
+                const h = Math.max(rect.height, window.innerHeight * 0.3) || (window.innerHeight * 0.65);
+                W = canvas.width = Math.floor(w * window.devicePixelRatio);
+                H = canvas.height = Math.floor(h * 0.65 * window.devicePixelRatio);
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-                W /= window.devicePixelRatio;
-                H /= window.devicePixelRatio;
+                W = Math.floor(W / window.devicePixelRatio);
+                H = Math.floor(H / window.devicePixelRatio);
             }
             resize();
             window.addEventListener('resize', resize);
+            // 页面完全加载后再次确认尺寸
+            window.addEventListener('load', () => { resize(); });
+            // 多重延迟保险
+            setTimeout(() => { resize(); }, 50);
+            setTimeout(() => { resize(); }, 250);
+            setTimeout(() => { resize(); }, 800);
 
             const maxPoints = 300;
             const data = [];
@@ -3757,7 +3769,14 @@
                 if (metaBpm) metaBpm.textContent = 'BPM ' + bpm;
                 if (metaSignal) metaSignal.textContent = '信号强度 ' + sig + '%';
             }, 1800);
-        })();
+        }
+
+        // 等待 DOM 和样式就绪后初始化心电图
+        if (document.readyState === 'complete') {
+            initHeaderEcg();
+        } else {
+            window.addEventListener('load', initHeaderEcg);
+        }
 
 // ===== 期间特效系统（背景色 + 粒子 + 烟花）=====
         const STAGE_CONFIG = {
