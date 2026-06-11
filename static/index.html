@@ -3596,19 +3596,20 @@
         
 
         // ===== 首屏心电图背景动画 =====
-        function initHeaderEcg() {
+        (function() {
             const canvas = document.getElementById('headerEcgCanvas');
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
 
             let W = 0, H = 0;
             function resize() {
-                const rect = canvas.parentElement ? canvas.parentElement.getBoundingClientRect() : {width:0,height:0};
-                const w = rect.width > 10 ? rect.width : window.innerWidth;
-                const h = rect.height > 10 ? rect.height : (window.innerHeight * 0.65);
                 const dpr = window.devicePixelRatio || 1;
-                W = canvas.width = Math.max(100, Math.floor(w * dpr));
-                H = canvas.height = Math.max(100, Math.floor(h * 0.65 * dpr));
+                const w = window.innerWidth || 1280;
+                const h = (window.innerHeight || 600) * 0.65;
+                W = Math.max(200, Math.floor(w * dpr));
+                H = Math.max(200, Math.floor(h * 0.65 * dpr));
+                canvas.width = W;
+                canvas.height = H;
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.scale(dpr, dpr);
                 W = Math.floor(W / dpr);
@@ -3617,65 +3618,37 @@
             resize();
             window.addEventListener('resize', resize);
             window.addEventListener('load', resize);
-            // 多次延迟重试，确保尺寸正确
-            [50, 150, 400, 800, 1500].forEach(t => setTimeout(resize, t));
+            setTimeout(resize, 100);
+            setTimeout(resize, 500);
+            setTimeout(resize, 1000);
 
             const maxPoints = 300;
             const data = [];
-            const pulseTypes = [];
-            for (let i = 0; i < maxPoints; i++) { data.push(0); pulseTypes.push(null); }
+            for (let i = 0; i < maxPoints; i++) data.push(0);
 
             let tick = 0;
             let nextBeat = 40 + Math.floor(Math.random() * 30);
             let beatPhase = 0;
-            let beatCount = 0;
-            let currentBeatType = 'normal';
-            let lastPulseType = 'normal';
-
-            function pickBeatType() {
-                const types = ['normal', 'normal', 'normal', 'narrow', 'wide', 'tall'];
-                return types[Math.floor(Math.random() * types.length)];
-            }
 
             function generateNextValue() {
                 tick++;
                 if (tick >= nextBeat) {
                     beatPhase = 1;
-                    currentBeatType = pickBeatType();
                     nextBeat = tick + 42 + Math.floor(Math.random() * 30);
                 }
                 let val = 0;
                 if (beatPhase > 0) {
-                    let phases;
-                    const r = () => 0.6 + Math.random() * 0.3;
-                    if (currentBeatType === 'narrow') {
-                        phases = [
-                            { t: 1, v: -0.06 }, { t: 2, v: 0.5 }, { t: 3, v: -0.18 },
-                            { t: 5, v: 0.08 }, { t: 10, v: 0 }
-                        ];
-                    } else if (currentBeatType === 'wide') {
-                        phases = [
-                            { t: 1, v: -0.12 }, { t: 2, v: 0.6 }, { t: 3, v: -0.45 },
-                            { t: 4, v: 0.18 }, { t: 6, v: 0.06 }, { t: 14, v: 0 }
-                        ];
-                    } else if (currentBeatType === 'tall') {
-                        phases = [
-                            { t: 1, v: -0.08 }, { t: 2, v: 0.95 }, { t: 3, v: -0.4 },
-                            { t: 4, v: 0.2 }, { t: 9, v: 0 }
-                        ];
-                    } else {
-                        phases = [
-                            { t: 1, v: -0.1 }, { t: 2, v: r() }, { t: 3, v: -0.32 },
-                            { t: 4, v: 0.12 + Math.random() * 0.06 }, { t: 8, v: 0 }
-                        ];
-                    }
+                    const phases = [
+                        { t: 1, v: -0.1 }, { t: 2, v: 0.6 + Math.random() * 0.3 },
+                        { t: 3, v: -0.32 }, { t: 4, v: 0.12 + Math.random() * 0.06 },
+                        { t: 8, v: 0 }
+                    ];
                     const phase = phases.find(p => beatPhase === p.t);
                     if (phase) val = phase.v;
                     beatPhase++;
                     if (beatPhase > 20) beatPhase = 0;
                 }
                 val += (Math.random() - 0.5) * 0.025;
-                lastPulseType = currentBeatType;
                 return val;
             }
 
@@ -3684,17 +3657,13 @@
                 ctx.fillRect(0, 0, W, H);
 
                 data.shift();
-                pulseTypes.shift();
                 data.push(generateNextValue());
-                pulseTypes.push(lastPulseType);
 
-                // 网格
                 ctx.strokeStyle = 'rgba(255, 59, 48, 0.05)';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
-                const gridSpacing = 30;
-                for (let x = 0; x < W; x += gridSpacing) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
-                for (let y = 0; y < H; y += gridSpacing) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+                for (let x = 0; x < W; x += 30) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+                for (let y = 0; y < H; y += 30) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
                 ctx.stroke();
 
                 const baseY = H * 0.55;
@@ -3716,7 +3685,6 @@
                 }
                 if (drawing) ctx.stroke();
 
-                // 淡红光晕
                 ctx.save();
                 ctx.globalCompositeOperation = 'screen';
                 ctx.beginPath();
@@ -3732,7 +3700,6 @@
                 ctx.stroke();
                 ctx.restore();
 
-                // 右侧光标
                 const lastY = baseY - data[data.length - 1] * amplitude;
                 ctx.fillStyle = '#FF3B30';
                 ctx.beginPath();
@@ -3748,13 +3715,8 @@
 
                 requestAnimationFrame(draw);
             }
-            // draw 循环只启动一次
-            if (!window.__ecgDrawStarted) {
-                window.__ecgDrawStarted = true;
-                requestAnimationFrame(draw);
-            }
+            requestAnimationFrame(draw);
 
-            // 标题装饰条动态更新
             const metaBpm = document.querySelector('.meta-bpm');
             const metaSignal = document.querySelector('.meta-signal');
             setInterval(() => {
@@ -3763,14 +3725,7 @@
                 if (metaBpm) metaBpm.textContent = 'BPM ' + bpm;
                 if (metaSignal) metaSignal.textContent = '信号强度 ' + sig + '%';
             }, 1800);
-        }
-
-        // 直接初始化，多重保险
-        initHeaderEcg();
-        if (document.readyState !== 'complete') {
-            window.addEventListener('load', initHeaderEcg);
-        }
-        [100, 300, 600, 1200].forEach(t => setTimeout(initHeaderEcg, t));
+        })();
 
 // ===== 期间特效系统（背景色 + 粒子 + 烟花）=====
         const STAGE_CONFIG = {
